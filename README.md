@@ -20,11 +20,18 @@ A lightweight MCP (Model Context Protocol) server for OpenHAB semantic operation
    Create a `.env` file in the project root with your OpenHAB credentials:
    ```bash
    cat > .env << EOF
+   # OpenHAB Configuration (Required)
    OPENHAB_BASE_URL=https://your-openhab-instance.org
    OPENHAB_API_TOKEN=your_api_token_here
+   
+   # MCP Server Configuration
    MCP_HOST=0.0.0.0
-   MCP_PORT=8001
+   MCP_PORT=8000
+   MCP_TRANSPORT=streamable-http
    LOG_LEVEL=INFO
+   
+   # Inventory Configuration
+   INVENTORY_REFRESH_MINUTES=60
    EOF
    ```
 
@@ -34,7 +41,7 @@ A lightweight MCP (Model Context Protocol) server for OpenHAB semantic operation
    docker-compose up -d
    ```
    
-   The server will start on port 8001.
+   The server will start on port 8000.
 
 3. **Check Logs**
    
@@ -94,7 +101,7 @@ INVENTORY_REFRESH_MINUTES=60
 - `MCP_PORT`: Port for the MCP server (default: 8000)
 - `MCP_TRANSPORT`: Transport mode for MCP communication (default: streamable-http)
   - `streamable-http`: HTTP-based transport (recommended for Docker/containers)
-  - `stdio`: Standard input/output transport (for local development)
+  - `stdio`: Standard input/output transport (for local development only - **not compatible with Docker**)
   - `sse`: Server-Sent Events transport
 - `LOG_LEVEL`: Logging level (default: INFO)
 - `INVENTORY_REFRESH_MINUTES`: Interval for refreshing the semantic inventory (default: 60)

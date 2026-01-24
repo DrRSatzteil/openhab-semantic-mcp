@@ -79,7 +79,7 @@ Configure the server using environment variables in a `.env` file:
 OPENHAB_BASE_URL=https://your-openhab-instance.org
 OPENHAB_API_TOKEN=your_api_token_here
 MCP_HOST=0.0.0.0
-MCP_PORT=8001
+MCP_PORT=8000
 MCP_TRANSPORT=streamable-http
 LOG_LEVEL=INFO
 INVENTORY_REFRESH_MINUTES=60
@@ -91,7 +91,7 @@ INVENTORY_REFRESH_MINUTES=60
 
 **Optional:**
 - `MCP_HOST`: Host to bind the MCP server (default: 0.0.0.0)
-- `MCP_PORT`: Port for the MCP server (default: 8001)
+- `MCP_PORT`: Port for the MCP server (default: 8000)
 - `MCP_TRANSPORT`: Transport mode for MCP communication (default: streamable-http)
   - `streamable-http`: HTTP-based transport (recommended for Docker/containers)
   - `stdio`: Standard input/output transport (for local development)

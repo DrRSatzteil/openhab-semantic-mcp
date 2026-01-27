@@ -521,18 +521,49 @@ async def send_command_to_entities(
                 },
             }
 
-        # Send command to all matching items
+        # Send command to all matching items (optimistic approach)
         results = []
         successful_commands = 0
 
         for item_name in items:
             try:
-                success = openhab.send_command(item_name, command)
-                results.append(
-                    {"item_name": item_name, "success": success, "command": command}
-                )
-                if success:
+                # Get item details from inventory for error formatting
+                item = inventory.get_item(item_name)
+                
+                # Send command to OpenHAB (optimistic approach - don't pre-validate)
+                result = openhab.send_command(item_name, command)
+                
+                if result["success"]:
+                    results.append(
+                        {"item_name": item_name, "success": True, "command": command}
+                    )
                     successful_commands += 1
+                else:
+                    # Generate meaningful error message for failed commands
+                    if item and "400" in result.get("error", ""):
+                        # HTTP 400 usually means invalid command
+                        error_result = _validate_and_format_command_error(
+                            item_name, command, item.type, result["error"]
+                        )
+                    else:
+                        # Other types of errors (network, item not found, etc.)
+                        error_result = {
+                            "item_name": item_name,
+                            "success": False,
+                            "command": command,
+                            "error": result.get("error", "Unknown error")
+                        }
+                        
+                        # Add item type info if available
+                        if item:
+                            error_result["item_type"] = item.type
+                            # Use the same validation function to get allowed commands
+                            error_result = _validate_and_format_command_error(
+                                item_name, command, item.type, result.get("error", "Unknown error")
+                            )
+                    
+                    results.append(error_result)
+                    
             except Exception as e:
                 results.append(
                     {
@@ -543,22 +574,74 @@ async def send_command_to_entities(
                     }
                 )
 
+        # Determine overall success - at least one command must succeed
+        overall_success = successful_commands > 0
+
         return {
-            "success": True,
+            "success": overall_success,
             "command": command,
             "items_targeted": len(items),
             "successful_commands": successful_commands,
             "filters": {
-                "location": filters.location,
-                "equipment": filters.equipment,
-                "point": filters.point,
-                "property": filters.property,
+                "location": filters.location if filters else None,
+                "equipment": filters.equipment if filters else None,
+                "point": filters.point if filters else None,
+                "property": filters.property if filters else None,
                 "state": str(filters.state) if filters and filters.state else None,
             },
             "results": results,
         }
     except Exception as e:
         return handle_error("send_command_to_entities", e, "command: %s" % command)
+
+
+def _validate_and_format_command_error(item_name: str, command: str, item_type: str, error_msg: str) -> dict:
+    """Generate a meaningful error message for failed commands based on item type.
+    
+    Args:
+        item_name: Name of the item
+        command: Command that was sent
+        item_type: OpenHAB item type
+        error_msg: Original error message from OpenHAB
+        
+    Returns:
+        Formatted error result with allowed commands
+    """
+    # Add type-specific guidance based on OpenHAB item types
+    guidance = ""
+    if item_type == "Call":
+        guidance = " Use: REFRESH"
+    elif item_type == "Color":
+        guidance = " Use ON/OFF, INCREASE/DECREASE, 0-100 (brightness), hue,saturation,brightness (e.g., 120,100,50), REFRESH"
+    elif item_type == "Contact":
+        guidance = " Use: OPEN, CLOSED, REFRESH"
+    elif item_type == "DateTime":
+        guidance = " Use datetime format (e.g., 2023-12-25T14:30:00)"
+    elif item_type == "Number":
+        guidance = " Use numeric values, strings with units (e.g., '22 °C'), REFRESH"
+    elif item_type == "String":
+        guidance = " Use text values, REFRESH"
+    elif item_type == "Location":
+        guidance = " Use latitude,longitude format (e.g., 52.5200,13.4050), REFRESH"
+    elif item_type == "Dimmer":
+        guidance = " Use ON/OFF, INCREASE/DECREASE, 0-100, REFRESH"
+    elif item_type == "Player":
+        guidance = " Use: PLAY, PAUSE, NEXT, PREVIOUS, REWIND, FASTFORWARD, REFRESH"
+    elif item_type == "Rollershutter":
+        guidance = " Use UP/DOWN/STOP, 0-100 for position, REFRESH"
+    elif item_type == "Switch":
+        guidance = " Use: ON, OFF, REFRESH"
+    else:
+        guidance = " Unknown item type - check OpenHAB documentation"
+    
+    return {
+        "item_name": item_name,
+        "success": False,
+        "command": command,
+        "error": f"{error_msg}{guidance}",
+        "item_type": item_type,
+        "allowed_commands": []  # Empty since we provide guidance in text
+    }
 
 
 @mcp.tool()
@@ -694,18 +777,47 @@ async def update_entities_state(
                 },
             }
 
-        # Update state of all matching items
+        # Update state of all matching items (optimistic approach)
         results = []
         successful_updates = 0
 
         for item_name in items:
             try:
-                success = openhab.post_update(item_name, new_state)
-                results.append(
-                    {"item_name": item_name, "success": success, "new_state": new_state}
-                )
-                if success:
+                # Get item details from inventory for error formatting
+                item = inventory.get_item(item_name)
+                
+                # Update state in OpenHAB (optimistic approach - don't pre-validate)
+                result = openhab.post_update(item_name, new_state)
+                
+                if result["success"]:
+                    results.append(
+                        {"item_name": item_name, "success": True, "new_state": new_state}
+                    )
                     successful_updates += 1
+                else:
+                    # Generate meaningful error message for failed updates
+                    if item and "400" in result.get("error", ""):
+                        # HTTP 400 usually means invalid state value
+                        error_result = _validate_and_format_command_error(
+                            item_name, new_state, item.type, result["error"]
+                        )
+                        error_result["new_state"] = new_state
+                    else:
+                        # Other types of errors (network, item not found, etc.)
+                        error_result = {
+                            "item_name": item_name,
+                            "success": False,
+                            "new_state": new_state,
+                            "error": result.get("error", "Unknown error")
+                        }
+                        
+                        # Add item type info if available
+                        if item:
+                            error_result["item_type"] = item.type
+                            error_result["allowed_commands"] = []  # Empty since we provide guidance in text
+                    
+                    results.append(error_result)
+                    
             except Exception as e:
                 results.append(
                     {
@@ -716,16 +828,19 @@ async def update_entities_state(
                     }
                 )
 
+        # Determine overall success - at least one update must succeed
+        overall_success = successful_updates > 0
+
         return {
-            "success": True,
+            "success": overall_success,
             "new_state": new_state,
             "items_targeted": len(items),
             "successful_updates": successful_updates,
             "filters": {
-                "location": filters.location,
-                "equipment": filters.equipment,
-                "point": filters.point,
-                "property": filters.property,
+                "location": filters.location if filters else None,
+                "equipment": filters.equipment if filters else None,
+                "point": filters.point if filters else None,
+                "property": filters.property if filters else None,
                 "state": str(filters.state) if filters and filters.state else None,
             },
             "results": results,

@@ -336,7 +336,7 @@ class OpenHAB:
 
         logger.info("SSE listener stopped")
 
-    def send_command(self, item_name: str, command: str) -> bool:
+    def send_command(self, item_name: str, command: str) -> dict:
         """Send a command to an OpenHAB item
 
         Args:
@@ -344,7 +344,7 @@ class OpenHAB:
             command: Command to send
 
         Returns:
-            bool: True if command was successful, False otherwise
+            dict: Result with success status and optional error details
         """
         try:
             url = f"{self.base_url}/rest/items/{item_name}"
@@ -355,12 +355,22 @@ class OpenHAB:
             logger.info(
                 "Successfully sent command '%s' to item '%s'", command, item_name
             )
-            return True
+            return {"success": True}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
+            logger.error("Failed to send command to item '%s': %s", item_name, error_msg)
+            return {
+                "success": False,
+                "error": error_msg
+            }
         except Exception as e:
             logger.error("Failed to send command to item '%s': %s", item_name, e)
-            return False
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
-    def post_update(self, item_name: str, state: str) -> bool:
+    def post_update(self, item_name: str, state: str) -> dict:
         """Post a state update to an OpenHAB item
 
         Args:
@@ -368,7 +378,7 @@ class OpenHAB:
             state: New state value
 
         Returns:
-            bool: True if update was successful, False otherwise
+            dict: Result with success status and optional error details
         """
         try:
             url = f"{self.base_url}/rest/items/{item_name}/state"
@@ -379,7 +389,17 @@ class OpenHAB:
             logger.info(
                 "Successfully updated state '%s' for item '%s'", state, item_name
             )
-            return True
+            return {"success": True}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
+            logger.error("Failed to update state for item '%s': %s", item_name, error_msg)
+            return {
+                "success": False,
+                "error": error_msg
+            }
         except Exception as e:
             logger.error("Failed to update state for item '%s': %s", item_name, e)
-            return False
+            return {
+                "success": False,
+                "error": str(e)
+            }

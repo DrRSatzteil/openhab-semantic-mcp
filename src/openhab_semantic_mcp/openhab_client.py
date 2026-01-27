@@ -79,7 +79,7 @@ class OpenHAB:
                         item.get("parents", []), location_name
                     )
                     if location_item:
-                        location_obj, _, _ = self._build_location_hierarchy(location_item)
+                        location_obj = self._build_location_hierarchy(location_item)
                 # Check for the equipment location instead (recursive)
                 elif equipment_name:
                     equipment_item = self._find_parent_by_name(
@@ -96,7 +96,7 @@ class OpenHAB:
                         item.get("parents", []), equipment_name
                     )
                     if equipment_item:
-                        equipment, _, _ = self._build_equipment_hierarchy(equipment_item)
+                        equipment = self._build_equipment_hierarchy(equipment_item)
 
                 # Extract read_only from stateDescription, defaulting to False
                 state_description = item.get("stateDescription", {})
@@ -107,24 +107,6 @@ class OpenHAB:
                 property = config.get("relatesTo")
                 if property:
                     property = property.replace("Property_", "")
-
-                # Initialize LLM-friendly name fields
-                location_name_field = None
-                location_full_field = None
-                equipment_name_field = None
-                equipment_full_field = None
-                
-                # Set location names if location exists
-                if location_obj:
-                    location_full_field = location_obj.name
-                    # Extract short name from full name
-                    location_name_field = location_obj.name.split("_")[-1] if "_" in location_obj.name else location_obj.name
-                
-                # Set equipment names if equipment exists
-                if equipment:
-                    equipment_full_field = equipment.type
-                    # Extract short name from full type
-                    equipment_name_field = equipment.type.split("_")[-1] if "_" in equipment.type else equipment.type
 
                 processed_items.append(
                     Item(
@@ -137,11 +119,6 @@ class OpenHAB:
                         point=point if point.strip() else None,
                         property=property if property and property.strip() else None,
                         read_only=read_only,
-                        # LLM-friendly name fields
-                        location_name=location_name_field,
-                        location_full=location_full_field,
-                        equipment_name=equipment_name_field,
-                        equipment_full=equipment_full_field,
                     )
                 )
 
@@ -189,7 +166,8 @@ class OpenHAB:
                 equipment_item.get("parents", []), location_name
             )
             if location_item:
-                return self._build_location_hierarchy(location_item)
+                location_obj = self._build_location_hierarchy(location_item)
+                return location_obj
         
         # Check if current equipment has parent equipment (isPartOf)
         parent_equipment_name = equipment_semantics.get("config", {}).get("isPartOf")
@@ -227,18 +205,18 @@ class OpenHAB:
                 equipment_item.get("parents", []), parent_equipment_name
             )
             if parent_equipment_item:
-                parent_equipment, _, _ = self._build_equipment_hierarchy(parent_equipment_item)
+                parent_equipment = self._build_equipment_hierarchy(parent_equipment_item)
         
-        # Create equipment object
+        # Create equipment object with short name
         equipment = Equipment(
             type=equipment_full,  # Use full hierarchy for type
             id=equipment_name,
             label=equipment_item.get("label"),
             parent=parent_equipment,
+            short_name=equipment_short_name,  # LLM-friendly name
         )
         
-        # Return equipment with both naming schemes
-        return equipment, equipment_short_name, equipment_full
+        return equipment
 
     def _build_location_hierarchy(self, location_item: dict) -> Location:
         """Recursively build Location objects with parent relationships using semantic labels."""
@@ -246,19 +224,19 @@ class OpenHAB:
         semantics = location_item.get("metadata", {}).get("semantics", {})
         semantics_value = semantics.get("value", "")
 
+        # All OpenHAB locations should have semantic tags starting with "Location_"
         if not semantics_value.startswith("Location_"):
-            return Location(
-                name=location_item["name"], label=location_item.get("label")
-            )
+            raise ValueError(f"Invalid location semantics: {semantics_value}. Expected 'Location_*'")
 
         # Extract location hierarchy from semantic value: Location_Indoor_Room_LivingRoom
         location_hierarchy = semantics_value.replace("Location_", "").split("_")
         location_full = "_".join(location_hierarchy)  # Keep full hierarchy for indexing
         location_name = location_hierarchy[-1]  # Just "LivingRoom" for LLM
 
-        # Create the current location
+        # Create the current location with short name
         current_location = Location(
             name=location_full,  # Use full semantic hierarchy as name
+            short_name=location_name,  # LLM-friendly name
             label=location_item.get("label")
         )
 
@@ -273,11 +251,11 @@ class OpenHAB:
             )
             if parent_item:
                 # Recursively build parent hierarchy
-                parent_location, _, _ = self._build_location_hierarchy(parent_item)
+                parent_location = self._build_location_hierarchy(parent_item)
                 current_location.parent = parent_location
 
-        # Return location with both naming schemes
-        return current_location, location_name, location_full
+        # Return location with short name
+        return current_location
 
     def start_sse_listener(
         self,

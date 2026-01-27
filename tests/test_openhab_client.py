@@ -27,13 +27,12 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        location, location_name, location_full = self.client._build_location_hierarchy(location_item)
+        location = self.client._build_location_hierarchy(location_item)
         
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is None
-        assert location_name == "LivingRoom"
-        assert location_full == "Indoor_Room_LivingRoom"
+        assert location.short_name == "LivingRoom"
 
     def test_build_location_hierarchy_with_parent(self):
         """Test building location hierarchy with parent relationship."""
@@ -63,31 +62,32 @@ class TestOpenHABClient:
             "parents": [parent_item]
         }
         
-        location, location_name, location_full = self.client._build_location_hierarchy(child_item)
+        location = self.client._build_location_hierarchy(child_item)
         
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is not None
         assert location.parent.name == "Indoor_House"
-        assert location_name == "LivingRoom"
-        assert location_full == "Indoor_Room_LivingRoom"
+        assert location.short_name == "LivingRoom"
         assert location.parent.label == "House"
 
-    def test_build_location_hierarchy_no_semantics(self):
-        """Test building location without semantic value."""
+    def test_build_location_hierarchy_invalid_semantics(self):
+        """Test building location with invalid semantic value raises error."""
         location_item = {
-            "name": "SimpleLocation",
-            "label": "Simple Location",
-            "metadata": {},
+            "name": "InvalidLocation",
+            "label": "Invalid Location",
+            "metadata": {
+                "semantics": {
+                    "value": "InvalidTag",
+                    "config": {}
+                }
+            },
             "parents": []
         }
         
-        # This path returns a Location object directly, not a tuple
-        location = self.client._build_location_hierarchy(location_item)
-        
-        assert location.name == "SimpleLocation"
-        assert location.label == "Simple Location"
-        assert location.parent is None
+        # Should raise ValueError for invalid semantics
+        with pytest.raises(ValueError, match="Invalid location semantics"):
+            self.client._build_location_hierarchy(location_item)
 
     def test_build_equipment_hierarchy_full(self):
         """Test building full equipment hierarchy."""
@@ -103,14 +103,13 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(equipment_item)
+        equipment = self.client._build_equipment_hierarchy(equipment_item)
         
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
         assert equipment.parent is None
-        assert equipment_name == "Ceiling"
-        assert equipment_full == "Lighting_Ceiling"
+        assert equipment.short_name == "Ceiling"
 
     def test_build_equipment_hierarchy_with_parent(self):
         """Test building equipment hierarchy with parent relationship."""
@@ -140,15 +139,14 @@ class TestOpenHABClient:
             "parents": [parent_item]
         }
         
-        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(child_item)
+        equipment = self.client._build_equipment_hierarchy(child_item)
         
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
         assert equipment.parent is not None
         assert equipment.parent.type == "Lighting"
-        assert equipment_name == "Ceiling"
-        assert equipment_full == "Lighting_Ceiling"
+        assert equipment.short_name == "Ceiling"
         assert equipment.parent.id == "MainLighting_Equipment"
         assert equipment.parent.label == "Main Lighting"
 
@@ -161,14 +159,13 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(equipment_item)
+        equipment = self.client._build_equipment_hierarchy(equipment_item)
         
         assert equipment.type == ""
         assert equipment.id == "SimpleEquipment"
         assert equipment.label == "Simple Equipment"
         assert equipment.parent is None
-        assert equipment_name == ""
-        assert equipment_full == ""
+        assert equipment.short_name == ""
 
     def test_find_parent_by_name(self):
         """Test finding parent by name."""
@@ -188,9 +185,9 @@ class TestOpenHABClient:
     def test_build_recursive_locations(self):
         """Test building recursive location list."""
         # Create location hierarchy: House -> Indoor -> LivingRoom
-        house = Location(name="House", label="House")
-        indoor = Location(name="Indoor", label="Indoor", parent=house)
-        living_room = Location(name="Indoor_Room_LivingRoom", label="Living Room", parent=indoor)
+        house = Location(name="House", label="House", short_name="House")
+        indoor = Location(name="Indoor", label="Indoor", parent=house, short_name="Indoor")
+        living_room = Location(name="Indoor_Room_LivingRoom", label="Living Room", parent=indoor, short_name="LivingRoom")
         
         locations = self.client._build_recursive_locations(living_room)
         
@@ -198,7 +195,7 @@ class TestOpenHABClient:
 
     def test_build_recursive_locations_no_parent(self):
         """Test building recursive locations with no parent."""
-        location = Location(name="SimpleLocation", label="Simple Location")
+        location = Location(name="SimpleLocation", label="Simple Location", short_name="SimpleLocation")
         
         locations = self.client._build_recursive_locations(location)
         

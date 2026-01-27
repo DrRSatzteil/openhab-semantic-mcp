@@ -24,11 +24,12 @@ class State(BaseModel):
 
 
 class Location(BaseModel):
-    """Represents OpenHAB location hierarchy with parent relationships."""
+    """Represents OpenHAB Location with hierarchical relationships."""
 
     name: str
     label: Optional[str] = None
     parent: Optional["Location"] = None
+    short_name: str  # LLM-friendly name (e.g., "LivingRoom") - REQUIRED!
 
     class Config:
         """Pydantic configuration for Location model."""
@@ -44,6 +45,7 @@ class Equipment(BaseModel):
     id: str
     label: Optional[str] = None
     parent: Optional["Equipment"] = None
+    short_name: str  # LLM-friendly name (e.g., "Downlight") - REQUIRED!
 
     class Config:
         """Pydantic configuration for Equipment model."""
@@ -64,13 +66,9 @@ class Item(BaseModel):
     point: Optional[str] = None
     property: Optional[str] = None
     read_only: Optional[bool] = None
-    # LLM-friendly name fields
-    location_name: Optional[str] = None      # Just "LivingRoom"
-    location_full: Optional[str] = None      # "Indoor_Room_LivingRoom" 
-    equipment_name: Optional[str] = None     # Just "Downlight"
-    equipment_full: Optional[str] = None     # "Lighting_CeilingLight_Downlight"
 
     class Config:
         """Pydantic configuration for Item model."""
 
         populate_by_name = True
+        arbitrary_types_allowed = True

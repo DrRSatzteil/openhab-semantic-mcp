@@ -27,11 +27,13 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        location = self.client._build_location_hierarchy(location_item)
+        location, location_name, location_full = self.client._build_location_hierarchy(location_item)
         
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is None
+        assert location_name == "LivingRoom"
+        assert location_full == "Indoor_Room_LivingRoom"
 
     def test_build_location_hierarchy_with_parent(self):
         """Test building location hierarchy with parent relationship."""
@@ -49,7 +51,7 @@ class TestOpenHABClient:
         
         child_item = {
             "name": "LivingRoom_Location",
-            "label": "Living Room", 
+            "label": "Living Room",
             "metadata": {
                 "semantics": {
                     "value": "Location_Indoor_Room_LivingRoom",
@@ -61,12 +63,14 @@ class TestOpenHABClient:
             "parents": [parent_item]
         }
         
-        location = self.client._build_location_hierarchy(child_item)
+        location, location_name, location_full = self.client._build_location_hierarchy(child_item)
         
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is not None
         assert location.parent.name == "Indoor_House"
+        assert location_name == "LivingRoom"
+        assert location_full == "Indoor_Room_LivingRoom"
         assert location.parent.label == "House"
 
     def test_build_location_hierarchy_no_semantics(self):
@@ -78,6 +82,7 @@ class TestOpenHABClient:
             "parents": []
         }
         
+        # This path returns a Location object directly, not a tuple
         location = self.client._build_location_hierarchy(location_item)
         
         assert location.name == "SimpleLocation"
@@ -98,12 +103,14 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        equipment = self.client._build_equipment_hierarchy(equipment_item)
+        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(equipment_item)
         
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
         assert equipment.parent is None
+        assert equipment_name == "Ceiling"
+        assert equipment_full == "Lighting_Ceiling"
 
     def test_build_equipment_hierarchy_with_parent(self):
         """Test building equipment hierarchy with parent relationship."""
@@ -133,13 +140,15 @@ class TestOpenHABClient:
             "parents": [parent_item]
         }
         
-        equipment = self.client._build_equipment_hierarchy(child_item)
+        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(child_item)
         
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
         assert equipment.parent is not None
         assert equipment.parent.type == "Lighting"
+        assert equipment_name == "Ceiling"
+        assert equipment_full == "Lighting_Ceiling"
         assert equipment.parent.id == "MainLighting_Equipment"
         assert equipment.parent.label == "Main Lighting"
 
@@ -152,12 +161,14 @@ class TestOpenHABClient:
             "parents": []
         }
         
-        equipment = self.client._build_equipment_hierarchy(equipment_item)
+        equipment, equipment_name, equipment_full = self.client._build_equipment_hierarchy(equipment_item)
         
         assert equipment.type == ""
         assert equipment.id == "SimpleEquipment"
         assert equipment.label == "Simple Equipment"
         assert equipment.parent is None
+        assert equipment_name == ""
+        assert equipment_full == ""
 
     def test_find_parent_by_name(self):
         """Test finding parent by name."""

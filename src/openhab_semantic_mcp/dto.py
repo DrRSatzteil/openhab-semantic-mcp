@@ -53,20 +53,24 @@ class Equipment(BaseModel):
 
 
 class Item(BaseModel):
-    """Represents an OpenHAB item with semantic information and relationships."""
+    """Represents an OpenHAB item with semantic metadata."""
 
     name: str
-    type: str
-    state: State
     label: Optional[str] = None
-    read_only: Optional[bool] = Field(None, alias="readOnly")
+    type: str
+    state: Optional[State] = None
     location: Optional[Location] = None
     equipment: Optional[Equipment] = None
     point: Optional[str] = None
     property: Optional[str] = None
+    read_only: Optional[bool] = None
+    # LLM-friendly name fields
+    location_name: Optional[str] = None      # Just "LivingRoom"
+    location_full: Optional[str] = None      # "Indoor_Room_LivingRoom" 
+    equipment_name: Optional[str] = None     # Just "Downlight"
+    equipment_full: Optional[str] = None     # "Lighting_CeilingLight_Downlight"
 
     class Config:
         """Pydantic configuration for Item model."""
 
         populate_by_name = True
-        arbitrary_types_allowed = True

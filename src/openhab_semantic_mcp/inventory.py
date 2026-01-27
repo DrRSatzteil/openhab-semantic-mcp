@@ -40,6 +40,7 @@ class Inventory:
         self._equipment_index = defaultdict(set)
         self._point_index = defaultdict(set)
         self._property_index = defaultdict(set)
+        self._type_index = defaultdict(set)
         self._state_index = defaultdict(set)
         self._readonly_index = defaultdict(set)
         self._lock = RLock()
@@ -59,6 +60,7 @@ class Inventory:
         new_equipment_index = defaultdict(set)
         new_point_index = defaultdict(set)
         new_property_index = defaultdict(set)
+        new_type_index = defaultdict(set)
         new_state_index = defaultdict(set)
         new_readonly_index = defaultdict(set)
 
@@ -72,16 +74,28 @@ class Inventory:
             # Handle location indexing (including hierarchy)
             if item.location:
                 new_location_index[item.location.name].add(item.name)
-                # Add to all parent locations for hierarchical queries
+                # Add to all parent locations for hierarchical queries (parent relationships)
                 current_location = item.location
                 while current_location.parent:
                     new_location_index[current_location.parent.name].add(item.name)
                     current_location = current_location.parent
+                
+                # Add to all parent location types for hierarchical queries (type hierarchy)
+                location_hierarchy = item.location.name.split("_")
+                for i in range(len(location_hierarchy) - 1):
+                    parent_location = "_".join(location_hierarchy[: i + 1])
+                    new_location_index[parent_location].add(item.name)
 
             # Handle equipment indexing (including hierarchy)
             if item.equipment and item.equipment.type:
                 new_equipment_index[item.equipment.type].add(item.name)
-                # Add to all parent equipment for hierarchical queries
+                # Add to all parent equipment for hierarchical queries (parent relationships)
+                current_equipment = item.equipment
+                while current_equipment.parent:
+                    new_equipment_index[current_equipment.parent.type].add(item.name)
+                    current_equipment = current_equipment.parent
+                
+                # Add to all parent equipment types for hierarchical queries (type hierarchy)
                 equipment_hierarchy = item.equipment.type.split("_")
                 for i in range(len(equipment_hierarchy) - 1):
                     parent_equipment = "_".join(equipment_hierarchy[: i + 1])
@@ -104,6 +118,9 @@ class Inventory:
                 for i in range(len(property_hierarchy) - 1):
                     parent_property = "_".join(property_hierarchy[: i + 1])
                     new_property_index[parent_property].add(item.name)
+            
+            if item.type and item.type.strip():
+                new_type_index[item.type].add(item.name)
 
             # Handle readonly indexing
             if item.read_only:
@@ -115,6 +132,7 @@ class Inventory:
             new_equipment_index,
             new_point_index,
             new_property_index,
+            new_type_index,
             new_state_index,
             new_readonly_index,
         )
@@ -132,6 +150,7 @@ class Inventory:
                 self._equipment_index,
                 self._point_index,
                 self._property_index,
+                self._type_index,
                 self._state_index,
                 self._readonly_index,
             ) = self._build_indexes(items)
@@ -171,6 +190,15 @@ class Inventory:
         """
         with self._lock:
             return sorted(list(self._property_index.keys()))
+    
+    def get_available_types(self) -> List[str]:
+        """Get all available item types from the inventory.
+
+        Returns:
+            Sorted list of item types
+        """
+        with self._lock:
+            return sorted(list(self._type_index.keys()))
 
     def update_state_index(self, item_name: str, new_state: State):
         """Update the state index for a specific item.
@@ -220,6 +248,7 @@ class Inventory:
         equipment: str = None,
         point: str = None,
         item_property: str = None,
+        item_type: str = None,
         readonly: bool = None,
         invert_selection: Set[str] = None,
         refinement_item_names: List[str] = None,
@@ -233,6 +262,7 @@ class Inventory:
             equipment: Filter by equipment type (includes sub-types)
             point: Filter by point type (includes sub-types)
             item_property: Filter by property type (includes sub-types)
+            item_type: Filter by item type (includes sub-types)
             readonly: Filter readonly items
             invert_selection: Invert the selection of the specified filters
             refinement_item_names: List of specific item names for additional filtering
@@ -296,6 +326,14 @@ class Inventory:
                     )
                 else:
                     filters.append(self._property_index.get(item_property, set()))
+            if item_type:
+                if "type" in invert_set:
+                    filters.append(
+                        set(self._items.keys())
+                        - self._type_index.get(item_type, set())
+                    )
+                else:
+                    filters.append(self._type_index.get(item_type, set()))
             if readonly:
                 if "readonly" in invert_set:
                     filters.append(
@@ -358,6 +396,15 @@ class Inventory:
         """
         with self._lock:
             return set(self._property_index.keys())
+
+    def get_types(self) -> set[str]:
+        """Get all available item types from the inventory.
+
+        Returns:
+            Set of item type names
+        """
+        with self._lock:
+            return set(self._type_index.keys())
 
     def _is_state_in_range(
         self, state_value: str, range_filter: RangeStateFilter

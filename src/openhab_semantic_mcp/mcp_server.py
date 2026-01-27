@@ -533,17 +533,17 @@ async def send_command_to_entities(
                 # Send command to OpenHAB (optimistic approach - don't pre-validate)
                 result = openhab.send_command(item_name, command)
                 
-                if result["success"]:
+                if result and result.get("success"):
                     results.append(
                         {"item_name": item_name, "success": True, "command": command}
                     )
                     successful_commands += 1
                 else:
                     # Generate meaningful error message for failed commands
-                    if item and "400" in result.get("error", ""):
+                    if result and item and "400" in result.get("error", ""):
                         # HTTP 400 usually means invalid command
                         error_result = _validate_and_format_command_error(
-                            item_name, command, item.type, result["error"]
+                            item_name, command, item.type, result.get("error", "Unknown error")
                         )
                     else:
                         # Other types of errors (network, item not found, etc.)
@@ -551,7 +551,7 @@ async def send_command_to_entities(
                             "item_name": item_name,
                             "success": False,
                             "command": command,
-                            "error": result.get("error", "Unknown error")
+                            "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
                         }
                         
                         # Add item type info if available
@@ -789,26 +789,26 @@ async def update_entities_state(
                 # Update state in OpenHAB (optimistic approach - don't pre-validate)
                 result = openhab.post_update(item_name, new_state)
                 
-                if result["success"]:
+                if result and result.get("success"):
                     results.append(
                         {"item_name": item_name, "success": True, "new_state": new_state}
                     )
                     successful_updates += 1
                 else:
                     # Generate meaningful error message for failed updates
-                    if item and "400" in result.get("error", ""):
+                    if result and item and "400" in result.get("error", ""):
                         # HTTP 400 usually means invalid state value
                         error_result = _validate_and_format_command_error(
-                            item_name, new_state, item.type, result["error"]
+                            item_name, new_state, item.type, result.get("error", "Unknown error")
                         )
                         error_result["new_state"] = new_state
                     else:
-                        # Other types of errors (network, item not found, etc.)
+                        # Other types of errors (network, item not found, etc.) or None result
                         error_result = {
                             "item_name": item_name,
                             "success": False,
                             "new_state": new_state,
-                            "error": result.get("error", "Unknown error")
+                            "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
                         }
                         
                         # Add item type info if available

@@ -38,16 +38,18 @@ class Location(BaseModel):
 
 
 class Equipment(BaseModel):
-    """Represents OpenHAB Equipment with type and metadata."""
+    """Represents OpenHAB Equipment with type, metadata, and parent relationships."""
 
     type: str
     id: str
     label: Optional[str] = None
+    parent: Optional["Equipment"] = None
 
     class Config:
         """Pydantic configuration for Equipment model."""
 
         populate_by_name = True
+        arbitrary_types_allowed = True
 
 
 class Item(BaseModel):

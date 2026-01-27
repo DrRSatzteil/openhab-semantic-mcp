@@ -80,27 +80,15 @@ class OpenHAB:
                     )
                     if location_item:
                         location_obj = self._build_location_hierarchy(location_item)
-                # Check for the equipment location instead
+                # Check for the equipment location instead (recursive)
                 elif equipment_name:
                     equipment_item = self._find_parent_by_name(
                         item.get("parents", []), equipment_name
                     )
                     if equipment_item:
-                        equipment_semantics = equipment_item.get("metadata", {}).get(
-                            "semantics", {}
+                        location_obj = self._find_equipment_location_recursive(
+                            equipment_item, item.get("parents", [])
                         )
-                        location_name = equipment_semantics.get("config", {}).get(
-                            "hasLocation"
-                        )
-                        if location_name:
-                            # Search in equipment parents, not point item parents
-                            location_item = self._find_parent_by_name(
-                                equipment_item.get("parents", []), location_name
-                            )
-                            if location_item:
-                                location_obj = self._build_location_hierarchy(
-                                    location_item
-                                )
 
                 equipment = None
                 if equipment_name:
@@ -108,17 +96,7 @@ class OpenHAB:
                         item.get("parents", []), equipment_name
                     )
                     if equipment_item:
-                        equipment_type = (
-                            equipment_item.get("metadata", {})
-                            .get("semantics", {})
-                            .get("value")
-                        )
-                        if equipment_type:
-                            equipment = Equipment(
-                                type=equipment_type.replace("Equipment_", ""),
-                                id=equipment_name,
-                                label=equipment_item.get("label"),
-                            )
+                        equipment = self._build_equipment_hierarchy(equipment_item)
 
                 # Extract read_only from stateDescription, defaulting to False
                 state_description = item.get("stateDescription", {})
@@ -167,6 +145,76 @@ class OpenHAB:
             (parent for parent in parents if parent.get("name") == target_name), None
         )
 
+    def _find_equipment_location_recursive(self, equipment_item: dict, all_parents: List[dict]) -> Optional[Location]:
+        """Recursively find location for equipment by traversing parent hierarchy.
+        
+        Args:
+            equipment_item: Current equipment item to check
+            all_parents: All parents from the original item for searching
+            
+        Returns:
+            Location object if found, None otherwise
+        """
+        if not equipment_item:
+            return None
+            
+        # Check if current equipment has location
+        equipment_semantics = equipment_item.get("metadata", {}).get("semantics", {})
+        location_name = equipment_semantics.get("config", {}).get("hasLocation")
+        
+        if location_name:
+            # Find location item in the equipment's parents
+            location_item = self._find_parent_by_name(
+                equipment_item.get("parents", []), location_name
+            )
+            if location_item:
+                return self._build_location_hierarchy(location_item)
+        
+        # Check if current equipment has parent equipment (isPartOf)
+        parent_equipment_name = equipment_semantics.get("config", {}).get("isPartOf")
+        if parent_equipment_name:
+            # Find parent equipment in the equipment's parents
+            parent_equipment_item = self._find_parent_by_name(
+                equipment_item.get("parents", []), parent_equipment_name
+            )
+            if parent_equipment_item:
+                # Recursively search in parent equipment
+                return self._find_equipment_location_recursive(parent_equipment_item, all_parents)
+        
+        return None
+
+    def _build_equipment_hierarchy(self, equipment_item: dict) -> Equipment:
+        """Recursively build Equipment objects with parent relationships using semantic labels."""
+        # Extract semantic information
+        semantics = equipment_item.get("metadata", {}).get("semantics", {})
+        semantics_value = semantics.get("value", "")
+        equipment_name = equipment_item.get("name")
+        
+        # Get equipment type (remove "Equipment_" prefix)
+        equipment_type = semantics_value.replace("Equipment_", "") if semantics_value else ""
+        
+        # Check for parent equipment via isPartOf relationship
+        parent_equipment = None
+        config = semantics.get("config", {})
+        parent_equipment_name = config.get("isPartOf")
+        
+        if parent_equipment_name:
+            parent_equipment_item = self._find_parent_by_name(
+                equipment_item.get("parents", []), parent_equipment_name
+            )
+            if parent_equipment_item:
+                parent_equipment = self._build_equipment_hierarchy(parent_equipment_item)
+        
+        # Create equipment object
+        equipment = Equipment(
+            type=equipment_type,
+            id=equipment_name,
+            label=equipment_item.get("label"),
+            parent=parent_equipment,
+        )
+        
+        return equipment
+
     def _build_location_hierarchy(self, location_item: dict) -> Location:
         """Recursively build Location objects with parent relationships using semantic labels."""
         # Extract semantic information
@@ -180,14 +228,12 @@ class OpenHAB:
 
         # Extract location hierarchy from semantic value: Location_Indoor_Room_LivingRoom
         location_hierarchy = semantics_value.replace("Location_", "").split("_")
-        location_name = location_hierarchy[
-            -1
-        ]  # Use the most specific part as name and label
+        location_name = "_".join(location_hierarchy)  # Keep full hierarchy for indexing
 
         # Create the current location
         current_location = Location(
-            name=location_name,  # Use semantic name instead of item name
-            label=location_name,
+            name=location_name,  # Use full semantic hierarchy as name
+            label=location_item.get("label")
         )
 
         # Check if this location has a parent (isPartOf in semantics)

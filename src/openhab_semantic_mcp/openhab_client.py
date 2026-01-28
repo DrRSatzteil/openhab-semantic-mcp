@@ -400,11 +400,16 @@ class OpenHAB:
         try:
             url = f"{self.base_url}/rest/items/{item_name}"
             response = self.session.post(
-                url, data=command, headers={"Content-Type": "text/plain"}
+                url, 
+                data=command, 
+                headers={
+                    "Content-Type": "text/plain",
+                    "X-OpenHAB-Source": "openhab-semantic-mcp"
+                }
             )
             response.raise_for_status()
             logger.info(
-                "Successfully sent command '%s' to item '%s'", command, item_name
+                "Successfully sent command '%s' to item '%s' via MCP", command, item_name
             )
             return {"success": True}
         except requests.exceptions.HTTPError as e:
@@ -433,12 +438,17 @@ class OpenHAB:
         """
         try:
             url = f"{self.base_url}/rest/items/{item_name}/state"
-            response = self.session.post(
-                url, data=state, headers={"Content-Type": "text/plain"}
+            response = self.session.put(
+                url, 
+                data=state, 
+                headers={
+                    "Content-Type": "text/plain",
+                    "X-OpenHAB-Source": "openhab-semantic-mcp"
+                }
             )
             response.raise_for_status()
             logger.info(
-                "Successfully updated state '%s' for item '%s'", state, item_name
+                "Successfully updated state '%s' for item '%s' via MCP", state, item_name
             )
             return {"success": True}
         except requests.exceptions.HTTPError as e:

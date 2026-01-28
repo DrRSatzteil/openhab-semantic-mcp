@@ -314,6 +314,7 @@ def validate_filter_values(filters: Optional[SearchFilters]) -> Optional[Dict[st
         available_equipment = set(inventory.get_available_equipment())
         available_points = set(inventory.get_available_points())
         available_properties = set(inventory.get_available_properties())
+        available_item_types = set(inventory.get_available_types())
         
         return {
             "success": False,
@@ -326,11 +327,53 @@ def validate_filter_values(filters: Optional[SearchFilters]) -> Optional[Dict[st
                 "available_equipment": sorted(list(available_equipment))[:10],
                 "available_points": sorted(list(available_points))[:10],
                 "available_properties": sorted(list(available_properties))[:10],
+                "available_item_types": sorted(list(available_item_types))[:10],
                 "note": "Only showing first 10 values of each type. Use get_available_semantic_entities() for complete list."
             }
         }
     
     return None
+
+
+def format_item_response(item) -> Dict[str, Any]:
+    """Format an item for consistent API responses with LLM-friendly names.
+    
+    Args:
+        item: Item object from inventory
+        
+    Returns:
+        Formatted item dictionary with location hierarchy and equipment details
+    """
+    # Build location hierarchy
+    location_hierarchy = []
+    if item.location:
+        current = item.location
+        while current:
+            location_hierarchy.append(current.name)
+            current = current.parent
+        location_hierarchy = list(reversed(location_hierarchy))
+    
+    return {
+        "name": item.name,
+        "state": item.state.value if item.state else None,
+        "label": item.label,
+        "type": item.type,
+        "read_only": item.read_only,
+        "location": {
+            "name": item.location.name,
+            "short_name": item.location.short_name,
+            "hierarchy": location_hierarchy
+        } if item.location else None,
+        "equipment": {
+            "type": item.equipment.type,
+            "id": item.equipment.id,
+            "label": item.equipment.label,
+            "short_name": item.equipment.short_name,
+            "parent": item.equipment.parent
+        } if item.equipment else None,
+        "point": item.point,
+        "property": item.property,
+    }
 
 
 # Discovery Tools
@@ -375,10 +418,153 @@ def get_available_semantic_entities() -> Dict[str, Any]:
                     "values": inventory.get_available_properties(),
                     "examples": ["Temperature", "Light", "Power", "Opening_OpenState"],
                 },
+                "item_types": {
+                    "description": "OpenHAB item types (for understanding item capabilities)",
+                    "values": inventory.get_available_types(),
+                    "examples": ["Switch", "Dimmer", "Number", "String", "Group"],
+                },
             },
         }
     except Exception as e:
         return handle_error("get_available_semantic_entities", e)
+
+
+# Command Tools
+
+async def _execute_item_operation(
+    filters: Optional[SearchFilters],
+    refinement: Optional[ItemRefinement],
+    operation_type: str,
+    value: str,
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """Execute operation on items based on semantic filters (DRY helper).
+    
+    Args:
+        filters: Standard semantic search filters
+        refinement: Item refinement for ambiguity resolution
+        operation_type: "command" or "update"
+        value: Command or new state value
+        ctx: MCP context
+        
+    Returns:
+        Operation results with success status and details
+    """
+    try:
+        # Validate filter values
+        validation_error = validate_filter_values(filters)
+        if validation_error:
+            return validation_error
+
+        # Get refinement item names
+        refinement_item_names = refinement.item_names if refinement else None
+
+        # Get items based on filters
+        if filters:
+            # Convert state selection to internal filter
+            state_filter = convert_state_selection(filters.state)
+
+            items = inventory.get(
+                location=filters.location,
+                equipment=filters.equipment,
+                point=filters.point,
+                item_property=filters.property,
+                state=state_filter,
+                readonly=False,
+                invert_selection=filters.invert_selection,
+                refinement_item_names=refinement_item_names,
+            )
+        else:
+            # No filters provided
+            items = inventory.get(refinement_item_names=refinement_item_names)
+
+        if not items:
+            return {
+                "success": False,
+                "message": "No items found matching the specified criteria",
+                "filters": {
+                    "location": filters.location if filters else None,
+                    "equipment": filters.equipment if filters else None,
+                    "point": filters.point if filters else None,
+                    "property": filters.property if filters else None,
+                    "state": str(filters.state) if filters and filters.state else None,
+                },
+                "items_targeted": 0,
+                "results": [],
+            }
+
+        results = []
+        successful_operations = 0
+
+        # Execute operation on each item
+        for item_name in items:
+            item = inventory.get_item(item_name)
+            result = None
+            
+            if not item:
+                continue
+
+            try:
+                if operation_type == "command":
+                    # Send command
+                    result = openhab.send_command(item_name, value)
+                elif operation_type == "update":
+                    # Update state
+                    result = openhab.post_update(item_name, value)
+                else:
+                    raise ValueError(f"Unknown operation type: {operation_type}")
+
+                # Check result
+                if result and result.get("success"):
+                    successful_operations += 1
+                    results.append({
+                        "item_name": item_name,
+                        "success": True,
+                        "command" if operation_type == "command" else "new_state": value,
+                    })
+                else:
+                    # Operation failed
+                    error_result = {
+                        "item_name": item_name,
+                        "success": False,
+                        "command" if operation_type == "command" else "new_state": value,
+                        "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
+                    }
+                    
+                    # Add item type info if available
+                    if item:
+                        error_result["item_type"] = item.type
+                        error_result["allowed_commands"] = []  # Empty since we provide guidance in text
+                    
+                    results.append(error_result)
+                    
+            except Exception as e:
+                results.append({
+                    "item_name": item_name,
+                    "success": False,
+                    "command" if operation_type == "command" else "new_state": value,
+                    "error": str(e),
+                })
+
+        # Determine overall success
+        overall_success = successful_operations > 0
+
+        return {
+            "success": overall_success,
+            "command" if operation_type == "command" else "new_state": value,
+            "items_targeted": len(items),
+            "successful_operations": successful_operations,
+            "filters": {
+                "location": filters.location if filters else None,
+                "equipment": filters.equipment if filters else None,
+                "point": filters.point if filters else None,
+                "property": filters.property if filters else None,
+                "state": str(filters.state) if filters and filters.state else None,
+            },
+            "results": results,
+        }
+    except Exception as e:
+        return handle_error(f"{operation_type}_entities", e)
 
 
 # Command Tools
@@ -410,7 +596,7 @@ async def send_command_to_entities(
     Use get_available_semantic_entities() first to see what filters are available.
 
     Examples:
-    - Turn off all lights: filters=SearchFilters(point="Control"), command="OFF"
+    - Turn off all lights: filters=SearchFilters(equipment="LightSource", point="Control"), command="OFF"
     - Set heating to 20°C: filters=SearchFilters(equipment="HVAC", point="Setpoint"), command="20 °C"
     - Close all windows: filters=SearchFilters(point="Control", property="Opening"), command="CLOSE"
     - Turn off lights in LivingRoom: filters=SearchFilters(location="LivingRoom", point="Control"), command="OFF"
@@ -428,171 +614,7 @@ async def send_command_to_entities(
     Returns:
         Success status and details of which items were targeted
     """
-    try:
-        # Validate filter values first
-        if filters:
-            validation_error = validate_filter_values(filters)
-            if validation_error:
-                return validation_error
-
-        refinement_item_names = refinement.item_names if refinement else None
-
-        # Extract filter values from SearchFilters model
-        if filters:
-            # Convert state selection to internal filter
-            state_filter = convert_state_selection(filters.state)
-
-            items = inventory.get(
-                location=filters.location,
-                equipment=filters.equipment,
-                point=filters.point,
-                item_property=filters.property,
-                state=state_filter,
-                readonly=False,
-                invert_selection=filters.invert_selection,
-                refinement_item_names=refinement_item_names,
-            )
-        else:
-            # No filters provided
-            items = inventory.get(
-                readonly=False, refinement_item_names=refinement_item_names
-            )
-
-        # Check if we found too many items and ask for confirmation
-        if len(items) > 10:
-            # Check if client supports elicitation
-            try:
-                result = await ctx.elicit(
-                    message="Found %s items matching your criteria. This is quite a large operation. Are you sure you want to send command '%s' to all %s items?"
-                    % (len(items), command, len(items)),
-                    schema=CommandConfirmation,
-                )
-
-                if result.action == "accept" and result.data:
-                    if not result.data.confirm:
-                        return {
-                            "success": False,
-                            "message": "Operation cancelled by user",
-                            "items_found": len(items),
-                            "command": command,
-                        }
-                else:
-                    return {
-                        "success": False,
-                        "message": "Operation cancelled",
-                        "items_found": len(items),
-                        "command": command,
-                    }
-            except Exception:
-                # Client doesn't support elicitation, provide helpful warning
-                return {
-                    "success": False,
-                    "message": "⚠️  Large operation detected: Found %s items. Your MCP client doesn't support confirmation prompts for safety. Please use more specific filters to target fewer items (≤10)."
-                    % len(items),
-                    "items_found": len(items),
-                    "command": command,
-                    "suggestions": [
-                        "Try adding a location filter (e.g., location='LivingRoom')",
-                        "Try adding an equipment filter (e.g., equipment='Lighting')",
-                        "Try adding a point filter (e.g., point='Control_Switch')",
-                        "Use get_items() first to see what matches your criteria",
-                    ],
-                    "filters_used": {
-                        "location": filters.location if filters else None,
-                        "equipment": filters.equipment if filters else None,
-                        "point": filters.point if filters else None,
-                        "property": filters.property if filters else None,
-                        "state": (
-                            str(filters.state) if filters and filters.state else None
-                        ),
-                    },
-                }
-
-        if not items:
-            return {
-                "success": False,
-                "message": "No items found matching the specified criteria",
-                "filters": {
-                    "location": filters.location if filters else None,
-                    "equipment": filters.equipment if filters else None,
-                    "point": filters.point if filters else None,
-                    "property": filters.property if filters else None,
-                    "state": str(filters.state) if filters and filters.state else None,
-                },
-            }
-
-        # Send command to all matching items (optimistic approach)
-        results = []
-        successful_commands = 0
-
-        for item_name in items:
-            try:
-                # Get item details from inventory for error formatting
-                item = inventory.get_item(item_name)
-                
-                # Send command to OpenHAB (optimistic approach - don't pre-validate)
-                result = openhab.send_command(item_name, command)
-                
-                if result and result.get("success"):
-                    results.append(
-                        {"item_name": item_name, "success": True, "command": command}
-                    )
-                    successful_commands += 1
-                else:
-                    # Generate meaningful error message for failed commands
-                    if result and item and "400" in result.get("error", ""):
-                        # HTTP 400 usually means invalid command
-                        error_result = _validate_and_format_command_error(
-                            item_name, command, item.type, result.get("error", "Unknown error")
-                        )
-                    else:
-                        # Other types of errors (network, item not found, etc.)
-                        error_result = {
-                            "item_name": item_name,
-                            "success": False,
-                            "command": command,
-                            "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
-                        }
-                        
-                        # Add item type info if available
-                        if item:
-                            error_result["item_type"] = item.type
-                            # Use the same validation function to get allowed commands
-                            error_result = _validate_and_format_command_error(
-                                item_name, command, item.type, result.get("error", "Unknown error")
-                            )
-                    
-                    results.append(error_result)
-                    
-            except Exception as e:
-                results.append(
-                    {
-                        "item_name": item_name,
-                        "success": False,
-                        "error": str(e),
-                        "command": command,
-                    }
-                )
-
-        # Determine overall success - at least one command must succeed
-        overall_success = successful_commands > 0
-
-        return {
-            "success": overall_success,
-            "command": command,
-            "items_targeted": len(items),
-            "successful_commands": successful_commands,
-            "filters": {
-                "location": filters.location if filters else None,
-                "equipment": filters.equipment if filters else None,
-                "point": filters.point if filters else None,
-                "property": filters.property if filters else None,
-                "state": str(filters.state) if filters and filters.state else None,
-            },
-            "results": results,
-        }
-    except Exception as e:
-        return handle_error("send_command_to_entities", e, "command: %s" % command)
+    return await _execute_item_operation(filters, refinement, "command", command, ctx)
 
 
 def _validate_and_format_command_error(item_name: str, command: str, item_type: str, error_msg: str) -> dict:
@@ -612,7 +634,7 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
     if item_type == "Call":
         guidance = " Use: REFRESH"
     elif item_type == "Color":
-        guidance = " Use ON/OFF, INCREASE/DECREASE, 0-100 (brightness), hue,saturation,brightness (e.g., 120,100,50), REFRESH"
+        guidance = " Use ON/OFF, INCREASE/DECREASE, 0-100 (brightness), hue (0-359),saturation (0-100),brightness (0-100) (e.g., 120,100,50), REFRESH"
     elif item_type == "Contact":
         guidance = " Use: OPEN, CLOSED, REFRESH"
     elif item_type == "DateTime":
@@ -671,6 +693,11 @@ async def update_entities_state(
     This tool finds items matching your semantic criteria and updates their state.
     Use get_available_semantic_entities() first to see what filters are available.
 
+    Examples:
+    - Set all lights to ON: filters=SearchFilters(equipment="LightSource", point="Control"), new_state="ON"
+    - Set temperature to 20°C: filters=SearchFilters(equipment="HVAC", point="Setpoint"), new_state="20 °C"
+    - Update all sensors: filters=SearchFilters(point="Measurement"), new_state="42"
+
     REFINEMENT USAGE:
     - Only use when semantic filters are ambiguous
     - IMPORTANT: Only use item names that were returned by previous get_items() calls
@@ -684,169 +711,7 @@ async def update_entities_state(
     Returns:
         Success status and details of which items were updated
     """
-    try:
-        # Validate filter values first
-        if filters:
-            validation_error = validate_filter_values(filters)
-            if validation_error:
-                return validation_error
-
-        refinement_item_names = refinement.item_names if refinement else None
-
-        # Extract filter values from SearchFilters model
-        if filters:
-            # Convert state selection to internal filter
-            state_filter = convert_state_selection(filters.state)
-
-            items = inventory.get(
-                location=filters.location,
-                equipment=filters.equipment,
-                point=filters.point,
-                item_property=filters.property,
-                state=state_filter,
-                readonly=False,
-                invert_selection=filters.invert_selection,
-                refinement_item_names=refinement_item_names,
-            )
-        else:
-            # No filters provided
-            items = inventory.get(
-                readonly=False, refinement_item_names=refinement_item_names
-            )
-
-        # Check if we found too many items and ask for confirmation
-        if len(items) > 10:
-            # Check if client supports elicitation
-            try:
-                result = await ctx.elicit(
-                    message="Found %s items matching your criteria. This is quite a large operation. Are you sure you want to update the state of all %s items to '%s'?"
-                    % (len(items), len(items), new_state),
-                    schema=StateUpdateConfirmation,
-                )
-
-                if result.action == "accept" and result.data:
-                    if not result.data.confirm:
-                        return {
-                            "success": False,
-                            "message": "Operation cancelled by user",
-                            "items_found": len(items),
-                            "new_state": new_state,
-                        }
-                else:
-                    return {
-                        "success": False,
-                        "message": "Operation cancelled",
-                        "items_found": len(items),
-                        "new_state": new_state,
-                    }
-            except Exception:
-                # Client doesn't support elicitation, provide helpful warning
-                return {
-                    "success": False,
-                    "message": "⚠️  Large operation detected: Found %s items. Your MCP client doesn't support confirmation prompts for safety. Please use more specific filters to target fewer items (≤10)."
-                    % len(items),
-                    "items_found": len(items),
-                    "new_state": new_state,
-                    "suggestions": [
-                        "Try adding a location filter (e.g., location='LivingRoom')",
-                        "Try adding an equipment filter (e.g., equipment='Lighting')",
-                        "Try adding a point filter (e.g., point='Control_Switch')",
-                        "Use get_items() first to see what matches your criteria",
-                    ],
-                    "filters_used": {
-                        "location": filters.location if filters else None,
-                        "equipment": filters.equipment if filters else None,
-                        "point": filters.point if filters else None,
-                        "property": filters.property if filters else None,
-                        "state": (
-                            str(filters.state) if filters and filters.state else None
-                        ),
-                    },
-                }
-
-        if not items:
-            return {
-                "success": False,
-                "message": "No items found matching the specified criteria",
-                "filters": {
-                    "location": filters.location if filters else None,
-                    "equipment": filters.equipment if filters else None,
-                    "point": filters.point if filters else None,
-                    "property": filters.property if filters else None,
-                    "state": str(filters.state) if filters and filters.state else None,
-                },
-            }
-
-        # Update state of all matching items (optimistic approach)
-        results = []
-        successful_updates = 0
-
-        for item_name in items:
-            try:
-                # Get item details from inventory for error formatting
-                item = inventory.get_item(item_name)
-                
-                # Update state in OpenHAB (optimistic approach - don't pre-validate)
-                result = openhab.post_update(item_name, new_state)
-                
-                if result and result.get("success"):
-                    results.append(
-                        {"item_name": item_name, "success": True, "new_state": new_state}
-                    )
-                    successful_updates += 1
-                else:
-                    # Generate meaningful error message for failed updates
-                    if result and item and "400" in result.get("error", ""):
-                        # HTTP 400 usually means invalid state value
-                        error_result = _validate_and_format_command_error(
-                            item_name, new_state, item.type, result.get("error", "Unknown error")
-                        )
-                        error_result["new_state"] = new_state
-                    else:
-                        # Other types of errors (network, item not found, etc.) or None result
-                        error_result = {
-                            "item_name": item_name,
-                            "success": False,
-                            "new_state": new_state,
-                            "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
-                        }
-                        
-                        # Add item type info if available
-                        if item:
-                            error_result["item_type"] = item.type
-                            error_result["allowed_commands"] = []  # Empty since we provide guidance in text
-                    
-                    results.append(error_result)
-                    
-            except Exception as e:
-                results.append(
-                    {
-                        "item_name": item_name,
-                        "success": False,
-                        "error": str(e),
-                        "new_state": new_state,
-                    }
-                )
-
-        # Determine overall success - at least one update must succeed
-        overall_success = successful_updates > 0
-
-        return {
-            "success": overall_success,
-            "new_state": new_state,
-            "items_targeted": len(items),
-            "successful_updates": successful_updates,
-            "filters": {
-                "location": filters.location if filters else None,
-                "equipment": filters.equipment if filters else None,
-                "point": filters.point if filters else None,
-                "property": filters.property if filters else None,
-                "state": str(filters.state) if filters and filters.state else None,
-            },
-            "results": results,
-        }
-    except Exception as e:
-        return handle_error("update_entities_state", e, "new_state: %s" % new_state)
+    return await _execute_item_operation(filters, refinement, "update", new_state, ctx)
 
 
 # Inventory Query Tools
@@ -873,7 +738,7 @@ def get_items(
     This is the main query method - you can combine any filters:
     - Get all items: no parameters
     - Get items by location: filters=SearchFilters(location="LivingRoom")
-    - Get all lights: filters=SearchFilters(equipment="Lighting")
+    - Get all lights: filters=SearchFilters(equipment="LightSource")
     - Get temperature sensors: filters=SearchFilters(point="Measurement", property="Temperature")
     - Get HVAC items: filters=SearchFilters(equipment="HVAC")
     - Get ON items in LivingRoom: filters=SearchFilters(location="LivingRoom", state="ON")
@@ -925,17 +790,7 @@ def get_items(
         for item_name in items:
             item = inventory.get_item(item_name)
             if item:
-                details = {
-                    "name": item.name,
-                    "state": item.state.value if item.state else None,
-                    "label": item.label,
-                    "type": item.type,
-                    "location": item.location.name if item.location else None,
-                    "equipment": item.equipment,
-                    "point": item.point,
-                    "property": item.property,
-                }
-                item_details.append(details)
+                item_details.append(format_item_response(item))
 
         result = {
             "success": True,
@@ -956,58 +811,6 @@ def get_items(
         return result
     except Exception as e:
         return handle_error("get_items", e)
-
-
-@mcp.tool()
-def get_item_details(
-    item_name: str = Field(..., description="Name of the item to get details for")
-) -> Dict[str, Any]:
-    """
-    Get detailed information about a specific item from the inventory.
-
-    Args:
-        item_name: Name of the item
-
-    Returns:
-        Detailed item information including semantic metadata
-    """
-    try:
-        item = inventory.get_item(item_name)
-        if not item:
-            return {
-                "success": False,
-                "item_name": item_name,
-                "message": "Item '%s' not found in inventory" % item_name,
-            }
-
-        # Build location hierarchy
-        location_hierarchy = []
-        if item.location:
-            current = item.location
-            while current:
-                location_hierarchy.append(current.name)
-                current = current.parent
-            location_hierarchy = list(reversed(location_hierarchy))
-
-        return {
-            "success": True,
-            "item": {
-                "name": item.name,
-                "state": item.state.value if item.state else None,
-                "label": item.label,
-                "type": item.type,
-                "read_only": item.read_only,
-                "location": {
-                    "name": item.location.name if item.location else None,
-                    "hierarchy": location_hierarchy,
-                },
-                "equipment": item.equipment,
-                "point": item.point,
-                "property": item.property,
-            },
-        }
-    except Exception as e:
-        return handle_error("get_item_details", e, "item_name: %s" % item_name)
 
 
 def run_server():

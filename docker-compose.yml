@@ -21,7 +21,7 @@ services:
       - INVENTORY_REFRESH_MINUTES=${INVENTORY_REFRESH_MINUTES:-60}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "healthcheck.py"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/${MCP_PORT:-8000} && exit 0 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy everything including healthcheck script
-COPY pyproject.toml README.md healthcheck.py ./
+# Copy everything
+COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
 # Install the package and dependencies
@@ -31,9 +31,9 @@ EXPOSE 8000
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-# Health check - check if the MCP server is responding using Python client
+# Health check - test TCP connection (no HTTP traffic = no log spam)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python healthcheck.py || exit 1
+    CMD bash -c 'exec 3<>/dev/tcp/localhost/${MCP_PORT:-8000} && exit 0 || exit 1'
 
 # Run the application using the module entry point and keep container running
 CMD python -m openhab_semantic_mcp

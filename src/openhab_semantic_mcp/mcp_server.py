@@ -395,33 +395,22 @@ def get_available_semantic_entities() -> Dict[str, Any]:
                 "locations": {
                     "description": "Physical locations (rooms, floors, outdoor areas)",
                     "values": inventory.get_available_locations(),
-                    "examples": ["LivingRoom", "Kitchen", "FirstFloor", "Garden"],
                 },
                 "equipment": {
                     "description": "Equipment and devices (hierarchical - includes sub-types)",
                     "values": inventory.get_available_equipment(),
-                    "examples": [
-                        "HVAC",
-                        "Lighting",
-                        "Window",
-                        "Sensor",
-                        "HVAC_Thermostat",
-                    ],
                 },
                 "points": {
                     "description": "Point types (hierarchical - includes sub-types)",
                     "values": inventory.get_available_points(),
-                    "examples": ["Control", "Measurement", "Status", "Control_Switch"],
                 },
                 "properties": {
                     "description": "Property types (hierarchical - includes sub-types)",
                     "values": inventory.get_available_properties(),
-                    "examples": ["Temperature", "Light", "Power", "Opening_OpenState"],
                 },
                 "item_types": {
-                    "description": "OpenHAB item types (for understanding item capabilities)",
+                    "description": "OpenHAB item types (for understanding item capabilities). Note: Rollershutter uses 0=open, 100=closed semantics",
                     "values": inventory.get_available_types(),
-                    "examples": ["Switch", "Dimmer", "Number", "String", "Group"],
                 },
             },
         }
@@ -650,7 +639,7 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
     elif item_type == "Player":
         guidance = " Use: PLAY, PAUSE, NEXT, PREVIOUS, REWIND, FASTFORWARD, REFRESH"
     elif item_type == "Rollershutter":
-        guidance = " Use UP/DOWN/STOP, 0-100 for position, REFRESH"
+        guidance = " Use UP/DOWN/STOP, 0-100 for position (0=Open, 100=Closed), REFRESH"
     elif item_type == "Switch":
         guidance = " Use: ON, OFF, REFRESH"
     else:

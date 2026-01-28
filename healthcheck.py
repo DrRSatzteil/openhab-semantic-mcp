@@ -38,8 +38,8 @@ def health_check():
     url = f"http://{host}:{port}/mcp"
     
     try:
-        # Try to make a simple request to the MCP endpoint
-        response = requests.get(
+        # Try to make a HEAD request to avoid log spam (no body)
+        response = requests.head(
             url, 
             timeout=5,
             headers={"Accept": "application/json"}
@@ -47,10 +47,15 @@ def health_check():
         
         # Check if we get any response (even 406 is OK - it means server is running)
         if response.status_code in [200, 406, 404]:
-            print(f"✅ MCP server responding (HTTP {response.status_code})")
+            status_msg = {
+                200: "OK - Server responding correctly",
+                406: "Not Acceptable - Server running (expected for MCP)", 
+                404: "Not Found - Server running (wrong endpoint)"
+            }
+            print(f"✅ MCP server healthy: {status_msg.get(response.status_code, 'HTTP ' + str(response.status_code))}")
             return True
         else:
-            print(f"❌ MCP server returned HTTP {response.status_code}")
+            print(f"❌ MCP server returned unexpected HTTP {response.status_code}")
             return False
             
     except requests.exceptions.ConnectionError:

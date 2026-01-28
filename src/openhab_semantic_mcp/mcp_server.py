@@ -196,6 +196,15 @@ logging.basicConfig(
     level=LOG_LEVEL, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
+# Configure FastMCP/Uvicorn logging to use our format
+try:
+    import uvicorn.logging
+    uvicorn.logging.Formatter.default_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    uvicorn.logging.Formatter.datefmt = "%Y-%m-%d %H:%M:%S, %f"
+except (ImportError, AttributeError):
+    # Uvicorn logging configuration not available - skip
+    pass
+
 # Initialize MCP after environment is loaded
 mcp = FastMCP(
     "OpenHAB Semantic MCP Server", host=MCP_HOST, port=MCP_PORT, log_level=LOG_LEVEL

@@ -25,15 +25,15 @@ RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
 
 # Expose the MCP server port
-EXPOSE 8001
+EXPOSE 8000
 
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-# Health check - check if the HTTP server is responding
+# Health check - check if the MCP HTTP server is responding
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${MCP_PORT:-8001} || exit 1
+    CMD curl -f http://localhost:${MCP_PORT:-8000}/mcp || exit 1
 
 # Run the application using the module entry point and keep container running
 CMD python -m openhab_semantic_mcp

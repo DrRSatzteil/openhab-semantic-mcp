@@ -493,6 +493,21 @@ async def _execute_item_operation(
             if not item:
                 continue
 
+            if item.read_only:
+                error_result = {
+                    "item_name": item_name,
+                    "success": False,
+                    "command" if operation_type == "command" else "new_state": value,
+                    "error": "Item is read only - cannot send commands or updates"
+                }
+                
+                # Add item type info for better debugging
+                if item:
+                    error_result["item_type"] = item.type
+                
+                results.append(error_result)
+                continue
+
             try:
                 if operation_type == "command":
                     # Send command
@@ -523,7 +538,6 @@ async def _execute_item_operation(
                     # Add item type info if available
                     if item:
                         error_result["item_type"] = item.type
-                        error_result["allowed_commands"] = []  # Empty since we provide guidance in text
                     
                     results.append(error_result)
                     
@@ -642,6 +656,8 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
         guidance = " Use UP/DOWN/STOP, 0-100 for position (0=Open, 100=Closed), REFRESH"
     elif item_type == "Switch":
         guidance = " Use: ON, OFF, REFRESH"
+    elif item_type == "Group":
+        guidance = " Usage depends on group members"
     else:
         guidance = " Unknown item type - check OpenHAB documentation"
     
@@ -651,7 +667,6 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
         "command": command,
         "error": f"{error_msg}{guidance}",
         "item_type": item_type,
-        "allowed_commands": []  # Empty since we provide guidance in text
     }
 
 

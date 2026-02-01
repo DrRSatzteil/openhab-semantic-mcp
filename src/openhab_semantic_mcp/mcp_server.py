@@ -359,6 +359,7 @@ def format_item_response(item) -> Dict[str, Any]:
         "label": item.label,
         "type": item.type,
         "read_only": item.read_only,
+        "allowed_commands": item.allowed_commands,
         "location": {
             "name": item.location.name,
             "short_name": item.location.short_name,

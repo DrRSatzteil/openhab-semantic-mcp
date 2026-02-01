@@ -353,6 +353,15 @@ def format_item_response(item) -> Dict[str, Any]:
             current = current.parent
         location_hierarchy = list(reversed(location_hierarchy))
     
+    # Build equipment hierarchy
+    equipment_hierarchy = []
+    if item.equipment:
+        current = item.equipment
+        while current:
+            equipment_hierarchy.append(current.type)
+            current = current.parent
+        equipment_hierarchy = list(reversed(equipment_hierarchy))
+    
     return {
         "name": item.name,
         "state": item.state.value if item.state else None,
@@ -370,7 +379,7 @@ def format_item_response(item) -> Dict[str, Any]:
             "id": item.equipment.id,
             "label": item.equipment.label,
             "short_name": item.equipment.short_name,
-            "parent": item.equipment.parent
+            "hierarchy": equipment_hierarchy
         } if item.equipment else None,
         "point": item.point,
         "property": item.property,

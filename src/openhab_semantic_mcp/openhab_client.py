@@ -102,6 +102,11 @@ class OpenHAB:
                 state_description = item.get("stateDescription", {})
                 read_only = state_description.get("readOnly", False)
 
+                # Extract allowed_commands from commandDescription
+                command_description = item.get("commandDescription", {})
+                command_options = command_description.get("commandOptions", [])
+                allowed_commands = [cmd.get("command") for cmd in command_options if cmd.get("command")]
+
                 # Create Item object with all properties
                 point = semantics_value.replace("Point_", "")
                 property = config.get("relatesTo")
@@ -119,6 +124,7 @@ class OpenHAB:
                         point=point if point.strip() else None,
                         property=property if property and property.strip() else None,
                         read_only=read_only,
+                        allowed_commands=allowed_commands if allowed_commands else None,
                     )
                 )
 

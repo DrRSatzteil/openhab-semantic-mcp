@@ -66,6 +66,7 @@ class Item(BaseModel):
     point: Optional[str] = None
     property: Optional[str] = None
     read_only: Optional[bool] = None
+    allowed_commands: Optional[list[str]] = None
 
     class Config:
         """Pydantic configuration for Item model."""

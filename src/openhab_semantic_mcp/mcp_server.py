@@ -353,14 +353,18 @@ def format_item_response(item) -> Dict[str, Any]:
             current = current.parent
         location_hierarchy = list(reversed(location_hierarchy))
     
-    # Build equipment hierarchy
-    equipment_hierarchy = []
-    if item.equipment:
-        current = item.equipment
-        while current:
-            equipment_hierarchy.append(current.type)
-            current = current.parent
-        equipment_hierarchy = list(reversed(equipment_hierarchy))
+    # Build recursive equipment response
+    def build_equipment_response(equipment) -> Dict[str, Any]:
+        """Build recursive equipment response with parent chain."""
+        response = {
+            "type": equipment.type,
+            "id": equipment.id,
+            "label": equipment.label,
+            "short_name": equipment.short_name,
+        }
+        if equipment.parent:
+            response["parent"] = build_equipment_response(equipment.parent)
+        return response
     
     return {
         "name": item.name,
@@ -374,13 +378,7 @@ def format_item_response(item) -> Dict[str, Any]:
             "short_name": item.location.short_name,
             "hierarchy": location_hierarchy
         } if item.location else None,
-        "equipment": {
-            "type": item.equipment.type,
-            "id": item.equipment.id,
-            "label": item.equipment.label,
-            "short_name": item.equipment.short_name,
-            "hierarchy": equipment_hierarchy
-        } if item.equipment else None,
+        "equipment": build_equipment_response(item.equipment) if item.equipment else None,
         "point": item.point,
         "property": item.property,
     }

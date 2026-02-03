@@ -373,6 +373,7 @@ def format_item_response(item) -> Dict[str, Any]:
         "type": item.type,
         "read_only": item.read_only,
         "allowed_commands": item.allowed_commands,
+        "allowed_states": item.allowed_states,
         "location": {
             "name": item.location.name,
             "short_name": item.location.short_name,
@@ -515,6 +516,42 @@ async def _execute_item_operation(
                 
                 results.append(error_result)
                 continue
+
+            # Command validation for String items with allowed_commands
+            if operation_type == "command" and item.allowed_commands:
+                if value not in item.allowed_commands:
+                    error_result = {
+                        "item_name": item_name,
+                        "success": False,
+                        "command": value,
+                        "error": f"Command '{value}' not allowed. Allowed commands: {item.allowed_commands}",
+                        "allowed_commands": item.allowed_commands
+                    }
+                    
+                    # Add item type info for better debugging
+                    if item:
+                        error_result["item_type"] = item.type
+                    
+                    results.append(error_result)
+                    continue
+
+            # State validation for items with allowed_states
+            if operation_type == "update" and item.allowed_states:
+                if value not in item.allowed_states:
+                    error_result = {
+                        "item_name": item_name,
+                        "success": False,
+                        "new_state": value,
+                        "error": f"State '{value}' not allowed. Allowed states: {item.allowed_states}",
+                        "allowed_states": item.allowed_states
+                    }
+                    
+                    # Add item type info for better debugging
+                    if item:
+                        error_result["item_type"] = item.type
+                    
+                    results.append(error_result)
+                    continue
 
             try:
                 if operation_type == "command":

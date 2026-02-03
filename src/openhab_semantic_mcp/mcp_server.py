@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""
-OpenHAB Semantic MCP Server - A lightweight MCP server for OpenHAB semantic operations.
+"""openHAB Semantic MCP Server - A lightweight MCP server for openHAB semantic operations.
 
 This server provides tools for:
-- Sending commands to OpenHAB items
+- Sending commands to openHAB items
 - Getting item information from the semantic inventory
 - Querying items by location, equipment, points, and properties
 - Real-time state updates via SSE
@@ -86,7 +85,7 @@ class RangeStateSelection(StateSelectionModel):
 # Standard Search Filters Model
 class SearchFilters(BaseModel):
     """
-    Standard semantic search filters for OpenHAB items.
+    Standard semantic search filters for openHAB items.
     These are the primary filters for normal use cases.
     """
 
@@ -320,7 +319,7 @@ def validate_filter_values(filters: Optional[SearchFilters]) -> Optional[Dict[st
             "success": False,
             "error": "Invalid filter values specified",
             "invalid_values": invalid_values,
-            "message": f"The following filter values don't exist in your OpenHAB system: {', '.join(invalid_values)}",
+            "message": f"The following filter values don't exist in your openHAB system: {', '.join(invalid_values)}",
             "guidance": {
                 "suggestion": "Use get_available_semantic_entities() first to discover valid values",
                 "available_locations": sorted(list(available_locations))[:10],  # Show first 10
@@ -391,7 +390,7 @@ def get_available_semantic_entities() -> Dict[str, Any]:
     """
     Get all available semantic entities (locations, equipment, points, properties) that can be used for filtering.
 
-    This is the main discovery tool - use this to understand what's available in the OpenHAB system
+    This is the main discovery tool - use this to understand what's available in the openHAB system
     before using other tools. The returned entities can be used as filters in other tools.
 
     Returns:
@@ -418,7 +417,7 @@ def get_available_semantic_entities() -> Dict[str, Any]:
                     "values": inventory.get_available_properties(),
                 },
                 "item_types": {
-                    "description": "OpenHAB item types (for understanding item capabilities). Note: Rollershutter uses 0=open, 100=closed semantics",
+                    "description": "openHAB item types (for understanding item capabilities). Note: Rollershutter uses 0=open, 100=closed semantics",
                     "values": inventory.get_available_types(),
                 },
             },
@@ -577,7 +576,7 @@ async def _execute_item_operation(
                         "item_name": item_name,
                         "success": False,
                         "command" if operation_type == "command" else "new_state": value,
-                        "error": result.get("error", "Unknown error") if result else "No response from OpenHAB"
+                        "error": result.get("error", "Unknown error") if result else "No response from openHAB"
                     }
                     
                     # Add item type info if available
@@ -638,7 +637,7 @@ async def send_command_to_entities(
     ctx: Context = None,
 ) -> Dict[str, Any]:
     """
-    Send a command to OpenHAB items based on semantic filters.
+    Send a command to openHAB items based on semantic filters.
 
     This tool finds items matching your semantic criteria and sends the command to them.
     Use get_available_semantic_entities() first to see what filters are available.
@@ -671,13 +670,13 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
     Args:
         item_name: Name of the item
         command: Command that was sent
-        item_type: OpenHAB item type
-        error_msg: Original error message from OpenHAB
+        item_type: openHAB item type
+        error_msg: Original error message from openHAB
         
     Returns:
         Formatted error result with allowed commands
     """
-    # Add type-specific guidance based on OpenHAB item types
+    # Add type-specific guidance based on openHAB item types
     guidance = ""
     if item_type == "Call":
         guidance = " Use: REFRESH"
@@ -704,7 +703,7 @@ def _validate_and_format_command_error(item_name: str, command: str, item_type: 
     elif item_type == "Group":
         guidance = " Usage depends on group members"
     else:
-        guidance = " Unknown item type - check OpenHAB documentation"
+        guidance = " Unknown item type - check openHAB documentation"
     
     return {
         "item_name": item_name,
@@ -737,7 +736,7 @@ async def update_entities_state(
     ctx: Context = None,
 ) -> Dict[str, Any]:
     """
-    Update the state of OpenHAB items based on semantic filters.
+    Update the state of openHAB items based on semantic filters.
 
     This tool finds items matching your semantic criteria and updates their state.
     Use get_available_semantic_entities() first to see what filters are available.
@@ -865,7 +864,7 @@ def get_items(
 def run_server():
     """Run the MCP server."""
     try:
-        logger.info("Starting OpenHAB Semantic MCP Server on %s:%s", MCP_HOST, MCP_PORT)
+        logger.info("Starting openHAB Semantic MCP Server on %s:%s", MCP_HOST, MCP_PORT)
         logger.info("Connected to OpenHAB at %s", OPENHAB_BASE_URL)
         logger.info("Using MCP transport: %s", MCP_TRANSPORT)
         mcp.run(transport=MCP_TRANSPORT)

@@ -1,6 +1,6 @@
-"""Data Transfer Objects for OpenHAB semantic models.
+"""Data Transfer Objects for openHAB semantic models.
 
-This module defines Pydantic models for OpenHAB items, states, locations,
+This module defines Pydantic models for openHAB items, states, locations,
 equipment, and other semantic entities used throughout the MCP server.
 """
 
@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 
 class State(BaseModel):
-    """Represents an OpenHAB item state with value and metadata."""
+    """Represents an openHAB item state with value and metadata."""
 
     value: str
     display_state: Optional[str] = None
@@ -24,7 +24,7 @@ class State(BaseModel):
 
 
 class Location(BaseModel):
-    """Represents OpenHAB Location with hierarchical relationships."""
+    """Represents openHAB Location with hierarchical relationships."""
 
     name: str
     label: Optional[str] = None
@@ -39,7 +39,7 @@ class Location(BaseModel):
 
 
 class Equipment(BaseModel):
-    """Represents OpenHAB Equipment with type, metadata, and parent relationships."""
+    """Represents openHAB Equipment with type, metadata, and parent relationships."""
 
     type: str
     id: str
@@ -55,7 +55,7 @@ class Equipment(BaseModel):
 
 
 class Item(BaseModel):
-    """Represents an OpenHAB item with semantic metadata."""
+    """Represents an openHAB item with semantic metadata."""
 
     name: str
     label: Optional[str] = None

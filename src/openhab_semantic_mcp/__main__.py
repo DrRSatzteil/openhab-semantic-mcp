@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for the OpenHAB Semantic MCP Server.
+Main entry point for the openHAB Semantic MCP Server.
 
 This module provides the command-line interface for running the MCP server.
 """

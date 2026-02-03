@@ -1,10 +1,10 @@
-# OpenHAB Semantic MCP Server
+# openHAB Semantic MCP Server
 
-A lightweight MCP (Model Context Protocol) server for OpenHAB semantic operations.
+A lightweight MCP (Model Context Protocol) server for openHAB semantic operations.
 
 ## Features
 
-- Send commands to OpenHAB items based on semantic filters
+- Send commands to openHAB items based on semantic filters
 - Query items by location, equipment, points, and properties
 - **Dual hierarchy support**: Type-based and parent-based semantic hierarchies
 - Get detailed item information from the semantic inventory
@@ -18,10 +18,10 @@ A lightweight MCP (Model Context Protocol) server for OpenHAB semantic operation
 
 1. **Set Environment Variables**
    
-   Create a `.env` file in the project root with your OpenHAB credentials:
+   Create a `.env` file in the project root with your openHAB credentials:
    ```bash
    cat > .env << EOF
-   # OpenHAB Configuration (Required)
+   # openHAB Configuration (Required)
    OPENHAB_BASE_URL=https://your-openhab-instance.org
    OPENHAB_API_TOKEN=your_api_token_here
    
@@ -70,7 +70,7 @@ A lightweight MCP (Model Context Protocol) server for OpenHAB semantic operation
 2. **Configure environment**
    ```bash
    cp src/openhab_semantic_mcp/.env.example .env
-   # Edit the .env file with your OpenHAB configuration
+   # Edit the .env file with your openHAB configuration
    ```
 
 3. **Run the server**
@@ -94,7 +94,7 @@ INVENTORY_REFRESH_MINUTES=60
 ```
 
 **Required:**
-- `OPENHAB_BASE_URL`: URL of your OpenHAB instance
+- `OPENHAB_BASE_URL`: URL of your openHAB instance
 - `OPENHAB_API_TOKEN`: API token for authentication
 
 **Optional:**
@@ -128,7 +128,7 @@ Uses semantic naming conventions with underscore separators:
 - `Indoor_Room_DiningRoom` → indexed under `Indoor`, `Indoor_Room`, and `Indoor_Room_DiningRoom`
 
 ### Parent-Based Hierarchies  
-Uses OpenHAB `isPartOf` semantic relationships:
+Uses openHAB `isPartOf` semantic relationships:
 - Equipment can have parent equipment relationships
 - Locations inherit from parent locations
 - Items without direct location inherit location from parent equipment
@@ -167,5 +167,5 @@ pytest tests/ --cov=openhab_semantic_mcp
 Test coverage includes:
 - DTO models and relationships
 - Inventory indexing with dual hierarchies
-- OpenHAB client semantic parsing
+- openHAB client semantic parsing
 - Hierarchical query functionality

@@ -1,6 +1,6 @@
-"""OpenHAB REST API client with SSE support.
+"""openHAB REST API client with SSE support.
 
-This module provides a client for interacting with OpenHAB's REST API,
+This module provides a client for interacting with openHAB's REST API,
 including fetching semantic items and listening for real-time state updates
 via Server-Sent Events (SSE).
 """
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class OpenHAB:
-    """OpenHAB REST API client with authentication and SSE support."""
+    """openHAB REST API client with authentication and SSE support."""
 
     def __init__(
         self,
@@ -46,7 +46,7 @@ class OpenHAB:
         self._sse_callback = None
 
     def get_semantic_points(self) -> List[Item]:
-        """Fetch all semantic points from OpenHAB.
+        """Fetch all semantic points from openHAB.
 
         Returns:
             List of Item objects representing semantic points with their metadata
@@ -236,7 +236,7 @@ class OpenHAB:
         semantics = location_item.get("metadata", {}).get("semantics", {})
         semantics_value = semantics.get("value", "")
 
-        # All OpenHAB locations should have semantic tags starting with "Location_"
+        # All openHAB locations should have semantic tags starting with "Location_"
         if not semantics_value.startswith("Location_"):
             raise ValueError(f"Invalid location semantics: {semantics_value}. Expected 'Location_*'")
 
@@ -400,7 +400,7 @@ class OpenHAB:
         logger.info("SSE listener stopped")
 
     def send_command(self, item_name: str, command: str) -> dict:
-        """Send a command to an OpenHAB item
+        """Send a command to an openHAB item
 
         Args:
             item_name: Name of the item to command
@@ -439,7 +439,7 @@ class OpenHAB:
             }
 
     def post_update(self, item_name: str, state: str) -> dict:
-        """Post a state update to an OpenHAB item
+        """Post a state update to an openHAB item
 
         Args:
             item_name: Name of the item to update

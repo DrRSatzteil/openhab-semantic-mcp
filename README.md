@@ -6,6 +6,9 @@ A lightweight MCP (Model Context Protocol) server for openHAB semantic operation
 
 - Send commands to openHAB items based on semantic filters
 - Query items by location, equipment, points, and properties
+- **Command validation**: Uses openHAB Command Description metadata to prevent invalid commands
+- **State validation**: Uses openHAB State Description metadata to prevent invalid state updates
+- **Recursive equipment relationships**: Parent-child equipment chains for device grouping
 - **Dual hierarchy support**: Type-based and parent-based semantic hierarchies
 - Get detailed item information from the semantic inventory
 - Real-time state updates via Server-Sent Events (SSE)
@@ -117,6 +120,29 @@ The MCP server provides these semantic tools:
 - **get_item_details**: Get detailed information about a specific item
 - **send_command_to_entities**: Send commands to items based on semantic filters
 - **update_entities_state**: Update states of items based on semantic filters
+
+## Command & State Validation
+
+The server automatically validates commands and state updates using openHAB's metadata:
+
+### Command Validation
+- **Command Description**: Uses `commandDescription.commandOptions` from openHAB
+- **Prevention**: Blocks invalid commands before sending to openHAB
+- **Feedback**: Shows valid commands from command metadata
+
+### State Validation  
+- **State Description**: Uses `stateDescription.options` from openHAB
+- **Prevention**: Blocks invalid state updates
+- **Feedback**: Shows valid states from state metadata
+
+### Example Error Response
+```json
+{
+  "success": false,
+  "error": "Command 'BLINK' not allowed. Allowed commands: ['ON', 'OFF', 'AUTO']",
+  "allowed_commands": ["ON", "OFF", "AUTO"]
+}
+```
 
 ## Semantic Hierarchies
 

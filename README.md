@@ -172,7 +172,10 @@ get_items(location="Indoor_Room_DiningRoom")  # Items in dining room (including 
 get_items(equipment="LightSource_AccentLight") # All accent lights (inherited from parent equipment)
 
 # Combined queries
-get_items(location="Indoor", equipment="Lighting")  # All indoor lighting
+get_items(location="Indoor", equipment="LightSource")  # All indoor lighting
+get_items(location="Indoor_Floor_GroundFloor", equipment="LightSource", point="Control_Switch", property="Light")  # All ground floor light switches
+get_items(point="Measurement", property="Humidity")  # All humidity measurements
+get_items(equipment="HVAC", point="Control")  # All controls related to HVAC
 ```
 
 ## Testing

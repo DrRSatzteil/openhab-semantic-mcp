@@ -3,7 +3,7 @@
 import abc
 from typing import List, Optional, Set, Literal, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ItemRefinement(BaseModel):
@@ -43,6 +43,7 @@ class RangeStateSelection(StateSelectionModel):
     includeUpper: bool = Field(True, description="Whether to include the upper bound")
 
     class Config:
+        """Pydantic config."""
         populate_by_name = True
         extra = "forbid"
 
@@ -79,3 +80,13 @@ class SearchFilters(BaseModel):
         None,
         description="Inverts the selection of the specified filters (e.g. 'point', 'state')",
     )
+
+    @field_validator("state", mode="before")
+    @classmethod
+    def coerce_state_from_string(cls, v):
+        """Auto-coerce plain strings/lists into ExactStateSelection."""
+        if isinstance(v, str):
+            return {"kind": "exact", "states": [v]}
+        if isinstance(v, list) and all(isinstance(x, str) for x in v):
+            return {"kind": "exact", "states": v}
+        return v

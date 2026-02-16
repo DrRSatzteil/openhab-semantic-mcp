@@ -1,6 +1,5 @@
 """Tests for DTO models and their relationships."""
 
-import pytest
 from openhab_semantic_mcp.dto import State, Location, Equipment, Item
 
 
@@ -10,7 +9,7 @@ class TestDTOModels:
     def test_state_creation(self):
         """Test State model creation."""
         state = State(value="21.5 °C")
-        
+
         assert state.value == "21.5 °C"
         assert state.display_state is None
         assert state.unit is None
@@ -22,9 +21,9 @@ class TestDTOModels:
             display_state="21.5 °C",
             state_type="Number",
             numericState=21.5,
-            unit="°C"
+            unit="°C",
         )
-        
+
         assert state.value == "21.5"
         assert state.display_state == "21.5 °C"
         assert state.state_type == "Number"
@@ -33,21 +32,24 @@ class TestDTOModels:
 
     def test_location_creation(self):
         """Test Location model creation."""
-        location = Location(name="Indoor_Room_LivingRoom", label="Living Room")
-        
+        location = Location(
+            name="Indoor_Room_LivingRoom", label="Living Room", short_name="LivingRoom"
+        )
+
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is None
 
     def test_location_with_parent(self):
         """Test Location model with parent relationship."""
-        parent = Location(name="Indoor", label="Indoor")
+        parent = Location(name="Indoor", label="Indoor", short_name="Indoor")
         child = Location(
-            name="Indoor_Room_LivingRoom", 
+            name="Indoor_Room_LivingRoom",
             label="Living Room",
-            parent=parent
+            parent=parent,
+            short_name="LivingRoom",
         )
-        
+
         assert child.name == "Indoor_Room_LivingRoom"
         assert child.label == "Living Room"
         assert child.parent is parent
@@ -55,10 +57,17 @@ class TestDTOModels:
 
     def test_location_recursive_hierarchy(self):
         """Test recursive location hierarchy."""
-        house = Location(name="House", label="House")
-        indoor = Location(name="Indoor", label="Indoor", parent=house)
-        living_room = Location(name="Indoor_Room_LivingRoom", label="Living Room", parent=indoor)
-        
+        house = Location(name="House", label="House", short_name="House")
+        indoor = Location(
+            name="Indoor", label="Indoor", parent=house, short_name="Indoor"
+        )
+        living_room = Location(
+            name="Indoor_Room_LivingRoom",
+            label="Living Room",
+            parent=indoor,
+            short_name="LivingRoom",
+        )
+
         assert living_room.parent is indoor
         assert living_room.parent.parent is house
         assert living_room.parent.parent.parent is None
@@ -68,9 +77,10 @@ class TestDTOModels:
         equipment = Equipment(
             type="Lighting_Ceiling",
             id="CeilingLight_LivingRoom",
-            label="Living Room Ceiling Light"
+            label="Living Room Ceiling Light",
+            short_name="CeilingLight",
         )
-        
+
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_LivingRoom"
         assert equipment.label == "Living Room Ceiling Light"
@@ -78,14 +88,20 @@ class TestDTOModels:
 
     def test_equipment_with_parent(self):
         """Test Equipment model with parent relationship."""
-        parent = Equipment(type="Lighting", id="MainLighting", label="Main Lighting")
+        parent = Equipment(
+            type="Lighting",
+            id="MainLighting",
+            label="Main Lighting",
+            short_name="MainLighting",
+        )
         child = Equipment(
             type="Lighting_Ceiling",
-            id="CeilingLight_LivingRoom", 
+            id="CeilingLight_LivingRoom",
             label="Living Room Ceiling Light",
-            parent=parent
+            parent=parent,
+            short_name="CeilingLight",
         )
-        
+
         assert child.type == "Lighting_Ceiling"
         assert child.id == "CeilingLight_LivingRoom"
         assert child.label == "Living Room Ceiling Light"
@@ -94,20 +110,27 @@ class TestDTOModels:
 
     def test_equipment_recursive_hierarchy(self):
         """Test recursive equipment hierarchy."""
-        main_lighting = Equipment(type="Lighting", id="MainLighting", label="Main Lighting")
+        main_lighting = Equipment(
+            type="Lighting",
+            id="MainLighting",
+            label="Main Lighting",
+            short_name="MainLighting",
+        )
         ceiling_lighting = Equipment(
-            type="Lighting_Ceiling", 
-            id="CeilingLighting", 
+            type="Lighting_Ceiling",
+            id="CeilingLighting",
             label="Ceiling Lighting",
-            parent=main_lighting
+            parent=main_lighting,
+            short_name="CeilingLighting",
         )
         specific_light = Equipment(
             type="Lighting_Ceiling_Downlight",
             id="Downlight1",
-            label="Downlight 1", 
-            parent=ceiling_lighting
+            label="Downlight 1",
+            parent=ceiling_lighting,
+            short_name="Downlight1",
         )
-        
+
         assert specific_light.parent is ceiling_lighting
         assert specific_light.parent.parent is main_lighting
         assert specific_light.parent.parent.parent is None
@@ -115,12 +138,8 @@ class TestDTOModels:
     def test_item_creation_minimal(self):
         """Test Item model creation with minimal fields."""
         state = State(value="ON")
-        item = Item(
-            name="TestLight",
-            type="Switch",
-            state=state
-        )
-        
+        item = Item(name="TestLight", type="Switch", state=state)
+
         assert item.name == "TestLight"
         assert item.type == "Switch"
         assert item.state is state
@@ -133,9 +152,16 @@ class TestDTOModels:
     def test_item_creation_full(self):
         """Test Item model creation with all fields."""
         state = State(value="21.5 °C")
-        location = Location(name="Indoor_Room_LivingRoom", label="Living Room")
-        equipment = Equipment(type="Lighting_Ceiling", id="CeilingLight", label="Ceiling Light")
-        
+        location = Location(
+            name="Indoor_Room_LivingRoom", label="Living Room", short_name="LivingRoom"
+        )
+        equipment = Equipment(
+            type="Lighting_Ceiling",
+            id="CeilingLight",
+            label="Ceiling Light",
+            short_name="CeilingLight",
+        )
+
         item = Item(
             name="LivingRoom_Temperature",
             type="Number",
@@ -145,9 +171,9 @@ class TestDTOModels:
             location=location,
             equipment=equipment,
             point="Measurement",
-            property="Temperature"
+            property="Temperature",
         )
-        
+
         assert item.name == "LivingRoom_Temperature"
         assert item.type == "Number"
         assert item.state is state
@@ -160,18 +186,22 @@ class TestDTOModels:
 
     def test_item_with_recursive_locations(self):
         """Test item with recursive location relationships."""
-        house = Location(name="House", label="House")
-        indoor = Location(name="Indoor", label="Indoor", parent=house)
-        living_room = Location(name="Indoor_Room_LivingRoom", label="Living Room", parent=indoor)
-        
+        house = Location(name="House", label="House", short_name="House")
+        indoor = Location(
+            name="Indoor", label="Indoor", parent=house, short_name="Indoor"
+        )
+        living_room = Location(
+            name="Indoor_Room_LivingRoom",
+            label="Living Room",
+            parent=indoor,
+            short_name="LivingRoom",
+        )
+
         state = State(value="ON")
         item = Item(
-            name="LivingRoom_Light",
-            type="Switch",
-            state=state,
-            location=living_room
+            name="LivingRoom_Light", type="Switch", state=state, location=living_room
         )
-        
+
         # Test that we can traverse the location hierarchy
         assert item.location.name == "Indoor_Room_LivingRoom"
         assert item.location.parent.name == "Indoor"
@@ -180,22 +210,25 @@ class TestDTOModels:
 
     def test_item_with_recursive_equipment(self):
         """Test item with recursive equipment relationships."""
-        main_lighting = Equipment(type="Lighting", id="MainLighting", label="Main Lighting")
+        main_lighting = Equipment(
+            type="Lighting",
+            id="MainLighting",
+            label="Main Lighting",
+            short_name="MainLighting",
+        )
         ceiling_lighting = Equipment(
             type="Lighting_Ceiling",
-            id="CeilingLighting", 
+            id="CeilingLighting",
             label="Ceiling Lighting",
-            parent=main_lighting
+            parent=main_lighting,
+            short_name="CeilingLighting",
         )
-        
+
         state = State(value="ON")
         item = Item(
-            name="CeilingLight1",
-            type="Switch",
-            state=state,
-            equipment=ceiling_lighting
+            name="CeilingLight1", type="Switch", state=state, equipment=ceiling_lighting
         )
-        
+
         # Test that we can traverse the equipment hierarchy
         assert item.equipment.type == "Lighting_Ceiling"
         assert item.equipment.parent.type == "Lighting"
@@ -204,12 +237,14 @@ class TestDTOModels:
     def test_model_serialization(self):
         """Test that models can be serialized to dict."""
         state = State(value="21.5 °C")
-        location = Location(name="Indoor_Room_LivingRoom", label="Living Room")
-        
+        location = Location(
+            name="Indoor_Room_LivingRoom", label="Living Room", short_name="LivingRoom"
+        )
+
         # Test model dict conversion
         state_dict = state.model_dump()
         assert state_dict["value"] == "21.5 °C"
-        
+
         location_dict = location.model_dump()
         assert location_dict["name"] == "Indoor_Room_LivingRoom"
         assert location_dict["label"] == "Living Room"

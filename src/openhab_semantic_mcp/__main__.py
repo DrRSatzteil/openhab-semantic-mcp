@@ -14,17 +14,17 @@ from openhab_semantic_mcp.mcp_server import run_server, openhab
 logger = logging.getLogger(__name__)
 
 
-def signal_handler(signum, frame):
+def signal_handler(signum, _frame):
     """Handle shutdown signals gracefully."""
     logger.info("Received signal %s, shutting down gracefully...", signum)
-    
+
     # Stop the SSE listener
     try:
         openhab.stop_sse_listener()
         logger.info("SSE listener stopped")
     except Exception as e:
         logger.error("Error stopping SSE listener: %s", e)
-    
+
     # Exit gracefully
     sys.exit(0)
 

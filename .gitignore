@@ -45,13 +45,8 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Git
-.git/
-.gitignore
-
-# Documentation
-README.md
-*.md
+# Coverage reports
+htmlcov/
 
 # Logs
 *.log
@@ -65,5 +60,6 @@ README.md
 .cache/
 *.cache
 
-# Development requirements
-requirements-dev.txt
+# Monitoring tasks
+monitoring_tasks.json
+.coverage

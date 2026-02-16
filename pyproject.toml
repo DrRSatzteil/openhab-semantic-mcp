@@ -30,8 +30,12 @@ dependencies = [
     "requests",
     "sseclient-py",
     "pydantic",
+    "pydantic-settings",
     "python-dotenv",
     "mcp",
+    "aiohttp",
+    "caldav",
+    "vobject",
 ]
 
 [project.optional-dependencies]
@@ -44,6 +48,17 @@ dev = [
     "flake8",
     "mypy",
     "pre-commit",
+    "types-requests",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "build",
+    "twine",
+    "wheel",
+]
+test = [
+    "pytest>=7.0",
+    "pytest-asyncio", 
+    "pytest-cov",
 ]
 
 [project.urls]

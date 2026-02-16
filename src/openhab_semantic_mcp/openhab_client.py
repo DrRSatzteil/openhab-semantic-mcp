@@ -15,6 +15,14 @@ import requests
 import sseclient
 
 from .dto import Equipment, Item, Location, State
+from .exceptions import (
+    OpenHABConnectionError,
+    OpenHABTimeoutError,
+    OpenHABAuthenticationError,
+    ItemNotFoundError,
+    ItemCommandError,
+    ItemStateError,
+)
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -44,6 +52,8 @@ class OpenHAB:
         self._sse_running = False
         self._sse_stop_event = threading.Event()
         self._sse_callback = None
+        self._item_names = None
+        self._channel_id = None
 
     def get_semantic_points(self) -> List[Item]:
         """Fetch all semantic points from openHAB.
@@ -105,18 +115,22 @@ class OpenHAB:
                 # Extract allowed_commands from commandDescription
                 command_description = item.get("commandDescription", {})
                 command_options = command_description.get("commandOptions", [])
-                allowed_commands = [cmd.get("command") for cmd in command_options if cmd.get("command")]
+                allowed_commands = [
+                    cmd.get("command") for cmd in command_options if cmd.get("command")
+                ]
 
                 # Extract allowed_states from stateDescription
                 state_description = item.get("stateDescription", {})
                 state_options = state_description.get("options", [])
-                allowed_states = [opt.get("value") for opt in state_options if opt.get("value")]
+                allowed_states = [
+                    opt.get("value") for opt in state_options if opt.get("value")
+                ]
 
                 # Create Item object with all properties
-                point = semantics_value.replace("Point_", "")
-                property = config.get("relatesTo")
-                if property:
-                    property = property.replace("Property_", "")
+                semantic_point = semantics_value.replace("Point_", "")
+                semantic_property = config.get("relatesTo")
+                if semantic_property:
+                    semantic_property = semantic_property.replace("Property_", "")
 
                 processed_items.append(
                     Item(
@@ -126,8 +140,12 @@ class OpenHAB:
                         state=State(value=item["state"]) if item.get("state") else None,
                         location=location_obj,
                         equipment=equipment,
-                        point=point if point.strip() else None,
-                        property=property if property and property.strip() else None,
+                        point=semantic_point if semantic_point.strip() else None,
+                        property=(
+                            semantic_property
+                            if semantic_property and semantic_property.strip()
+                            else None
+                        ),
                         read_only=read_only,
                         allowed_commands=allowed_commands if allowed_commands else None,
                         allowed_states=allowed_states if allowed_states else None,
@@ -155,23 +173,25 @@ class OpenHAB:
             (parent for parent in parents if parent.get("name") == target_name), None
         )
 
-    def _find_equipment_location_recursive(self, equipment_item: dict, all_parents: List[dict]) -> Optional[Location]:
+    def _find_equipment_location_recursive(
+        self, equipment_item: dict, all_parents: List[dict]
+    ) -> Optional[Location]:
         """Recursively find location for equipment by traversing parent hierarchy.
-        
+
         Args:
             equipment_item: Current equipment item to check
             all_parents: All parents from the original item for searching
-            
+
         Returns:
             Location object if found, None otherwise
         """
         if not equipment_item:
             return None
-            
+
         # Check if current equipment has location
         equipment_semantics = equipment_item.get("metadata", {}).get("semantics", {})
         location_name = equipment_semantics.get("config", {}).get("hasLocation")
-        
+
         if location_name:
             # Find location item in the equipment's parents
             location_item = self._find_parent_by_name(
@@ -180,7 +200,7 @@ class OpenHAB:
             if location_item:
                 location_obj = self._build_location_hierarchy(location_item)
                 return location_obj
-        
+
         # Check if current equipment has parent equipment (isPartOf)
         parent_equipment_name = equipment_semantics.get("config", {}).get("isPartOf")
         if parent_equipment_name:
@@ -190,8 +210,10 @@ class OpenHAB:
             )
             if parent_equipment_item:
                 # Recursively search in parent equipment
-                return self._find_equipment_location_recursive(parent_equipment_item, all_parents)
-        
+                return self._find_equipment_location_recursive(
+                    parent_equipment_item, all_parents
+                )
+
         return None
 
     def _build_equipment_hierarchy(self, equipment_item: dict) -> Equipment:
@@ -200,25 +222,29 @@ class OpenHAB:
         semantics = equipment_item.get("metadata", {}).get("semantics", {})
         semantics_value = semantics.get("value", "")
         equipment_name = equipment_item.get("name")
-        
+
         # Get equipment type (remove "Equipment_" prefix)
-        equipment_type = semantics_value.replace("Equipment_", "") if semantics_value else ""
+        equipment_type = (
+            semantics_value.replace("Equipment_", "") if semantics_value else ""
+        )
         equipment_hierarchy = equipment_type.split("_")
         equipment_full = "_".join(equipment_hierarchy)  # Full hierarchy for indexing
         equipment_short_name = equipment_hierarchy[-1]  # Just "Downlight" for LLM
-        
+
         # Check for parent equipment via isPartOf relationship
         parent_equipment = None
         config = semantics.get("config", {})
         parent_equipment_name = config.get("isPartOf")
-        
+
         if parent_equipment_name:
             parent_equipment_item = self._find_parent_by_name(
                 equipment_item.get("parents", []), parent_equipment_name
             )
             if parent_equipment_item:
-                parent_equipment = self._build_equipment_hierarchy(parent_equipment_item)
-        
+                parent_equipment = self._build_equipment_hierarchy(
+                    parent_equipment_item
+                )
+
         # Create equipment object with short name
         equipment = Equipment(
             type=equipment_full,  # Use full hierarchy for type
@@ -227,7 +253,7 @@ class OpenHAB:
             parent=parent_equipment,
             short_name=equipment_short_name,  # LLM-friendly name
         )
-        
+
         return equipment
 
     def _build_location_hierarchy(self, location_item: dict) -> Location:
@@ -238,7 +264,9 @@ class OpenHAB:
 
         # All openHAB locations should have semantic tags starting with "Location_"
         if not semantics_value.startswith("Location_"):
-            raise ValueError(f"Invalid location semantics: {semantics_value}. Expected 'Location_*'")
+            raise ValueError(
+                f"Invalid location semantics: {semantics_value}. Expected 'Location_*'"
+            )
 
         # Extract location hierarchy from semantic value: Location_Indoor_Room_LivingRoom
         location_hierarchy = semantics_value.replace("Location_", "").split("_")
@@ -249,7 +277,7 @@ class OpenHAB:
         current_location = Location(
             name=location_full,  # Use full semantic hierarchy as name
             short_name=location_name,  # LLM-friendly name
-            label=location_item.get("label")
+            label=location_item.get("label"),
         )
 
         # Check if this location has a parent (isPartOf in semantics)
@@ -296,10 +324,10 @@ class OpenHAB:
 
     def _sse_worker(self):
         """Worker function for SSE listening"""
-        channel_id = None
-        items_posted = False
 
         while not self._sse_stop_event.is_set():
+            self._channel_id = None
+
             try:
                 logger.info("Connecting to SSE stream...")
                 response = self.session.get(
@@ -316,22 +344,18 @@ class OpenHAB:
                     if self._sse_stop_event.is_set():
                         break
 
-                    # Handle SSE event format
                     if hasattr(event, "event") and hasattr(event, "data"):
-                        # SSE event with event type and data
                         event_type = event.event
                         event_data = event.data
 
-                        if not channel_id and event_type == "ready":
-                            channel_id = event_data
-                            self._channel_id = channel_id
-                            logger.info("Got SSE channel ID: %s", channel_id)
+                        if not self._channel_id and event_type == "ready":
+                            self._channel_id = event_data
+                            logger.info("Got SSE channel ID: %s", self._channel_id)
                             self.update_sse_items(self._item_names)
                             continue
 
                         if event_data and event_type == "message":
                             try:
-                                # Try to parse event data as JSON
                                 parsed_data = json.loads(event_data)
                                 for item_name, item_data in parsed_data.items():
                                     state_obj = State(
@@ -341,9 +365,11 @@ class OpenHAB:
                                         numeric_state=item_data.get("numericState"),
                                         unit=item_data.get("unit"),
                                     )
-                                    self._sse_callback(item_name, state_obj)
+                                    if self._sse_callback:
+                                        self._sse_callback(item_name, state_obj)
                             except Exception as e:
                                 logger.error("Error processing event data: %s", e)
+
             except Exception as e:
                 logger.error("SSE connection error: %s", e)
                 if not self._sse_stop_event.is_set():
@@ -412,31 +438,47 @@ class OpenHAB:
         try:
             url = f"{self.base_url}/rest/items/{item_name}"
             response = self.session.post(
-                url, 
-                data=command, 
+                url,
+                data=command,
                 headers={
                     "Content-Type": "text/plain",
-                    "X-OpenHAB-Source": "openhab-semantic-mcp"
-                }
+                    "X-OpenHAB-Source": "openhab-semantic-mcp",
+                },
             )
             response.raise_for_status()
+
             logger.info(
-                "Successfully sent command '%s' to item '%s' via MCP", command, item_name
+                "Command sent successfully to item '%s': %s", item_name, command
             )
             return {"success": True}
+
         except requests.exceptions.HTTPError as e:
-            error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
-            logger.error("Failed to send command to item '%s': %s", item_name, error_msg)
-            return {
-                "success": False,
-                "error": error_msg
-            }
+            if e.response.status_code == 404:
+                raise ItemNotFoundError(item_name)
+            elif e.response.status_code == 401:
+                raise OpenHABAuthenticationError(
+                    "Authentication failed", "token_or_basic"
+                ) from e
+            elif e.response.status_code == 403:
+                raise ItemCommandError(
+                    item_name, command, f"Permission denied for item '{item_name}'"
+                ) from e
+            else:
+                error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
+                raise ItemCommandError(item_name, command, error_msg) from e
+
+        except requests.exceptions.Timeout as e:
+            raise OpenHABTimeoutError(
+                f"Command timeout for item '{item_name}'", timeout_seconds=30
+            ) from e
+
+        except requests.exceptions.ConnectionError as e:
+            raise OpenHABConnectionError(
+                f"Failed to connect to OpenHAB at {self.base_url}", url=self.base_url
+            ) from e
+
         except Exception as e:
-            logger.error("Failed to send command to item '%s': %s", item_name, e)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            raise ItemCommandError(item_name, command, str(e)) from e
 
     def post_update(self, item_name: str, state: str) -> dict:
         """Post a state update to an openHAB item
@@ -451,28 +493,53 @@ class OpenHAB:
         try:
             url = f"{self.base_url}/rest/items/{item_name}/state"
             response = self.session.put(
-                url, 
-                data=state, 
+                url,
+                data=state,
                 headers={
                     "Content-Type": "text/plain",
-                    "X-OpenHAB-Source": "openhab-semantic-mcp"
-                }
+                    "X-OpenHAB-Source": "openhab-semantic-mcp",
+                },
             )
             response.raise_for_status()
             logger.info(
-                "Successfully updated state '%s' for item '%s' via MCP", state, item_name
+                "Successfully updated state '%s' for item '%s' via MCP",
+                state,
+                item_name,
             )
             return {"success": True}
         except requests.exceptions.HTTPError as e:
-            error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
-            logger.error("Failed to update state for item '%s': %s", item_name, error_msg)
-            return {
-                "success": False,
-                "error": error_msg
-            }
+            if e.response.status_code == 404:
+                raise ItemNotFoundError(item_name) from e
+            elif e.response.status_code == 401:
+                raise OpenHABAuthenticationError(
+                    "Authentication failed", "token_or_basic"
+                ) from e
+            elif e.response.status_code == 403:
+                raise ItemStateError(
+                    item_name, state, f"Permission denied for item '{item_name}'"
+                ) from e
+            else:
+                error_msg = f"HTTP {e.response.status_code}: {e.response.reason}"
+                raise ItemStateError(item_name, state, error_msg) from e
+        except requests.exceptions.Timeout:
+            raise OpenHABTimeoutError(
+                f"State update timeout for item '{item_name}'", timeout_seconds=30
+            ) from e
+        except requests.exceptions.ConnectionError:
+            raise OpenHABConnectionError(
+                f"Failed to connect to OpenHAB at {self.base_url}", url=self.base_url
+            ) from e
         except Exception as e:
-            logger.error("Failed to update state for item '%s': %s", item_name, e)
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            raise ItemStateError(item_name, state, str(e)) from e
+
+    def close(self):
+        """Close the HTTP session."""
+        if hasattr(self, "session") and self.session:
+            self.session.close()
+
+    def __del__(self):
+        """Cleanup on garbage collection."""
+        try:
+            self.close()
+        except Exception:
+            pass

@@ -19,16 +19,13 @@ class TestOpenHABClient:
             "name": "LivingRoom_Location",
             "label": "Living Room",
             "metadata": {
-                "semantics": {
-                    "value": "Location_Indoor_Room_LivingRoom",
-                    "config": {}
-                }
+                "semantics": {"value": "Location_Indoor_Room_LivingRoom", "config": {}}
             },
-            "parents": []
+            "parents": [],
         }
-        
+
         location = self.client._build_location_hierarchy(location_item)
-        
+
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is None
@@ -37,33 +34,26 @@ class TestOpenHABClient:
     def test_build_location_hierarchy_with_parent(self):
         """Test building location hierarchy with parent relationship."""
         parent_item = {
-            "name": "House_Location", 
+            "name": "House_Location",
             "label": "House",
-            "metadata": {
-                "semantics": {
-                    "value": "Location_Indoor_House",
-                    "config": {}
-                }
-            },
-            "parents": []
+            "metadata": {"semantics": {"value": "Location_Indoor_House", "config": {}}},
+            "parents": [],
         }
-        
+
         child_item = {
             "name": "LivingRoom_Location",
             "label": "Living Room",
             "metadata": {
                 "semantics": {
                     "value": "Location_Indoor_Room_LivingRoom",
-                    "config": {
-                        "isPartOf": "House_Location"
-                    }
+                    "config": {"isPartOf": "House_Location"},
                 }
             },
-            "parents": [parent_item]
+            "parents": [parent_item],
         }
-        
+
         location = self.client._build_location_hierarchy(child_item)
-        
+
         assert location.name == "Indoor_Room_LivingRoom"
         assert location.label == "Living Room"
         assert location.parent is not None
@@ -76,15 +66,10 @@ class TestOpenHABClient:
         location_item = {
             "name": "InvalidLocation",
             "label": "Invalid Location",
-            "metadata": {
-                "semantics": {
-                    "value": "InvalidTag",
-                    "config": {}
-                }
-            },
-            "parents": []
+            "metadata": {"semantics": {"value": "InvalidTag", "config": {}}},
+            "parents": [],
         }
-        
+
         # Should raise ValueError for invalid semantics
         with pytest.raises(ValueError, match="Invalid location semantics"):
             self.client._build_location_hierarchy(location_item)
@@ -95,16 +80,13 @@ class TestOpenHABClient:
             "name": "CeilingLight_Equipment",
             "label": "Ceiling Light",
             "metadata": {
-                "semantics": {
-                    "value": "Equipment_Lighting_Ceiling",
-                    "config": {}
-                }
+                "semantics": {"value": "Equipment_Lighting_Ceiling", "config": {}}
             },
-            "parents": []
+            "parents": [],
         }
-        
+
         equipment = self.client._build_equipment_hierarchy(equipment_item)
-        
+
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
@@ -116,31 +98,24 @@ class TestOpenHABClient:
         parent_item = {
             "name": "MainLighting_Equipment",
             "label": "Main Lighting",
-            "metadata": {
-                "semantics": {
-                    "value": "Equipment_Lighting",
-                    "config": {}
-                }
-            },
-            "parents": []
+            "metadata": {"semantics": {"value": "Equipment_Lighting", "config": {}}},
+            "parents": [],
         }
-        
+
         child_item = {
             "name": "CeilingLight_Equipment",
             "label": "Ceiling Light",
             "metadata": {
                 "semantics": {
                     "value": "Equipment_Lighting_Ceiling",
-                    "config": {
-                        "isPartOf": "MainLighting_Equipment"
-                    }
+                    "config": {"isPartOf": "MainLighting_Equipment"},
                 }
             },
-            "parents": [parent_item]
+            "parents": [parent_item],
         }
-        
+
         equipment = self.client._build_equipment_hierarchy(child_item)
-        
+
         assert equipment.type == "Lighting_Ceiling"
         assert equipment.id == "CeilingLight_Equipment"
         assert equipment.label == "Ceiling Light"
@@ -156,11 +131,11 @@ class TestOpenHABClient:
             "name": "SimpleEquipment",
             "label": "Simple Equipment",
             "metadata": {},
-            "parents": []
+            "parents": [],
         }
-        
+
         equipment = self.client._build_equipment_hierarchy(equipment_item)
-        
+
         assert equipment.type == ""
         assert equipment.id == "SimpleEquipment"
         assert equipment.label == "Simple Equipment"
@@ -172,13 +147,13 @@ class TestOpenHABClient:
         parents = [
             {"name": "Parent1", "label": "Parent 1"},
             {"name": "Parent2", "label": "Parent 2"},
-            {"name": "Parent3", "label": "Parent 3"}
+            {"name": "Parent3", "label": "Parent 3"},
         ]
-        
+
         found = self.client._find_parent_by_name(parents, "Parent2")
         assert found is not None
         assert found["name"] == "Parent2"
-        
+
         not_found = self.client._find_parent_by_name(parents, "NonExistent")
         assert not_found is None
 
@@ -186,30 +161,37 @@ class TestOpenHABClient:
         """Test building recursive location list."""
         # Create location hierarchy: House -> Indoor -> LivingRoom
         house = Location(name="House", label="House", short_name="House")
-        indoor = Location(name="Indoor", label="Indoor", parent=house, short_name="Indoor")
-        living_room = Location(name="Indoor_Room_LivingRoom", label="Living Room", parent=indoor, short_name="LivingRoom")
-        
+        indoor = Location(
+            name="Indoor", label="Indoor", parent=house, short_name="Indoor"
+        )
+        living_room = Location(
+            name="Indoor_Room_LivingRoom",
+            label="Living Room",
+            parent=indoor,
+            short_name="LivingRoom",
+        )
+
         locations = self.client._build_recursive_locations(living_room)
-        
+
         assert locations == ["House", "Indoor", "Indoor_Room_LivingRoom"]
 
     def test_build_recursive_locations_no_parent(self):
         """Test building recursive locations with no parent."""
-        location = Location(name="SimpleLocation", label="Simple Location", short_name="SimpleLocation")
-        
+        location = Location(
+            name="SimpleLocation", label="Simple Location", short_name="SimpleLocation"
+        )
+
         locations = self.client._build_recursive_locations(location)
-        
+
         assert locations == ["SimpleLocation"]
 
-    @patch('requests.get')
+    @patch("requests.get")
     def test_get_semantic_points_success(self, mock_get):
         """Test successful semantic points retrieval."""
         mock_response = Mock()
-        mock_response.json.return_value = {
-            "links": []
-        }
+        mock_response.json.return_value = {"links": []}
         mock_get.return_value = mock_response
-        
+
         # This would need more complex mocking for full testing
         # For now, just test that the method exists and can be called
         try:

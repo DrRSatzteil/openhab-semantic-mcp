@@ -1,11 +1,9 @@
-version: '3.8'
-
 services:
   openhab-semantic-mcp:
     build: .
     container_name: openhab-semantic-mcp
     ports:
-      - "8000:8000"
+      - "${MCP_PORT:-8000}:${MCP_PORT:-8000}"
     environment:
       # OpenHAB Configuration - Replace with your actual values
       - OPENHAB_BASE_URL=${OPENHAB_BASE_URL:-https://your-openhab-instance.org}
@@ -19,6 +17,21 @@ services:
       
       # Inventory Configuration
       - INVENTORY_REFRESH_MINUTES=${INVENTORY_REFRESH_MINUTES:-60}
+      
+      # Monitoring Configuration
+      - MONITORING_WEBHOOK_URL=${MONITORING_WEBHOOK_URL}
+      - MONITORING_WEBHOOK_AUTH_HEADER=${MONITORING_WEBHOOK_AUTH_HEADER}
+      - MONITORING_FILE=${MONITORING_FILE:-monitoring_tasks.json}
+      - MONITORING_STORAGE_TYPE=${MONITORING_STORAGE_TYPE:-memory}
+      - MONITORING_STORAGE_CONFIG=${MONITORING_STORAGE_CONFIG:-{}}
+      - MONITORING_TIMEZONE=${MONITORING_TIMEZONE:-Europe/Berlin}
+      
+      # Cleanup Configuration
+      - MONITORING_CLEANUP_INTERVAL=${MONITORING_CLEANUP_INTERVAL:-60}
+      - MONITORING_RETAIN_COMPLETED_DAYS=${MONITORING_RETAIN_COMPLETED_DAYS:-7}
+      - MONITORING_RETAIN_CANCELLED_DAYS=${MONITORING_RETAIN_CANCELLED_DAYS:-3}
+      - MONITORING_RETAIN_ERROR_DAYS=${MONITORING_RETAIN_ERROR_DAYS:-7}
+      - MONITORING_ENABLE_AUTO_CLEANUP=${MONITORING_ENABLE_AUTO_CLEANUP:-true}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/${MCP_PORT:-8000} && exit 0 || exit 1"]

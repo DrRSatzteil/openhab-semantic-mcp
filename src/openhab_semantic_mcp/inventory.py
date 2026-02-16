@@ -8,7 +8,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 from threading import RLock
-from typing import List, Optional, Set, Union
+from typing import Any, List, Optional, Set, Union
 
 from .dto import Item, State
 
@@ -79,7 +79,7 @@ class Inventory:
                 while current_location.parent:
                     new_location_index[current_location.parent.name].add(item.name)
                     current_location = current_location.parent
-                
+
                 # Add to all parent location types for hierarchical queries (type hierarchy)
                 location_hierarchy = item.location.name.split("_")
                 for i in range(len(location_hierarchy) - 1):
@@ -94,7 +94,7 @@ class Inventory:
                 while current_equipment.parent:
                     new_equipment_index[current_equipment.parent.type].add(item.name)
                     current_equipment = current_equipment.parent
-                
+
                 # Add to all parent equipment types for hierarchical queries (type hierarchy)
                 equipment_hierarchy = item.equipment.type.split("_")
                 for i in range(len(equipment_hierarchy) - 1):
@@ -118,7 +118,7 @@ class Inventory:
                 for i in range(len(property_hierarchy) - 1):
                     parent_property = "_".join(property_hierarchy[: i + 1])
                     new_property_index[parent_property].add(item.name)
-            
+
             if item.type and item.type.strip():
                 new_type_index[item.type].add(item.name)
 
@@ -190,7 +190,7 @@ class Inventory:
         """
         with self._lock:
             return sorted(list(self._property_index.keys()))
-    
+
     def get_available_types(self) -> List[str]:
         """Get all available item types from the inventory.
 
@@ -212,7 +212,7 @@ class Inventory:
                 return
 
             item = self._items[item_name]
-            old_state = item.state.value
+            old_state = item.state.value if item.state else None
 
             if old_state == new_state.value:
                 return
@@ -243,7 +243,7 @@ class Inventory:
 
     def get(
         self,
-        state: Optional[Union[ExactStateFilter, RangeStateFilter]] = None,
+        state: Optional[Union[ExactStateFilter, RangeStateFilter, Any]] = None,
         location: str = None,
         equipment: str = None,
         point: str = None,
@@ -272,6 +272,44 @@ class Inventory:
         with self._lock:
             # Collect all specified filters
             filters = []
+
+            # Normalize state selection models (pydantic/dict) into internal filters
+            if state is not None and not isinstance(
+                state, (ExactStateFilter, RangeStateFilter)
+            ):
+                try:
+                    if isinstance(state, dict):
+                        kind = state.get("kind")
+                        if kind == "exact":
+                            state = ExactStateFilter(
+                                states=list(state.get("states") or [])
+                            )
+                        elif kind == "range":
+                            state = RangeStateFilter(
+                                lower=state.get("lowerBound"),
+                                upper=state.get("upperBound"),
+                                include_lower=state.get("includeLower", True),
+                                include_upper=state.get("includeUpper", True),
+                            )
+                        else:
+                            state = None
+                    else:
+                        kind = getattr(state, "kind", None)
+                        if kind == "exact":
+                            state = ExactStateFilter(
+                                states=list(getattr(state, "states", []) or [])
+                            )
+                        elif kind == "range":
+                            state = RangeStateFilter(
+                                lower=getattr(state, "lowerBound", None),
+                                upper=getattr(state, "upperBound", None),
+                                include_lower=getattr(state, "includeLower", True),
+                                include_upper=getattr(state, "includeUpper", True),
+                            )
+                        else:
+                            state = None
+                except Exception:
+                    state = None
 
             # Ensure invert_selection is a set for efficient lookup
             invert_set = set(invert_selection) if invert_selection else set()
@@ -329,8 +367,7 @@ class Inventory:
             if item_type:
                 if "type" in invert_set:
                     filters.append(
-                        set(self._items.keys())
-                        - self._type_index.get(item_type, set())
+                        set(self._items.keys()) - self._type_index.get(item_type, set())
                     )
                 else:
                     filters.append(self._type_index.get(item_type, set()))
@@ -343,6 +380,12 @@ class Inventory:
                 else:
                     filters.append(self._readonly_index.get(readonly, set()))
 
+            # Refinement als zusätzlichen Filter hinzufügen
+            if refinement_item_names:
+                filters.append(
+                    set(refinement_item_names).intersection(self._items.keys())
+                )
+
             # If no filters, return all items
             if not filters:
                 return set(self._items.keys())
@@ -353,11 +396,6 @@ class Inventory:
             # Apply remaining filters
             for filter_set in filters[1:]:
                 result = result.intersection(filter_set)
-
-            # Apply refinement if provided
-            if refinement_item_names:
-                refinement_set = set(refinement_item_names)
-                result = result.intersection(refinement_set)
 
             return result
 

@@ -100,6 +100,18 @@ class TestCleanSemanticName:
         """Last part after underscore split is empty string."""
         assert CalendarEventMapper.clean_semantic_name("Foo_Bar_Baz") == "Baz"
 
+    def test_abbreviation_stays_together(self):
+        assert CalendarEventMapper.clean_semantic_name("HVAC") == "HVAC"
+
+    def test_abbreviation_followed_by_word(self):
+        assert CalendarEventMapper.clean_semantic_name("HVACThermostat") == "HVAC Thermostat"
+
+    def test_word_followed_by_abbreviation(self):
+        assert CalendarEventMapper.clean_semantic_name("myHVACUnit") == "my HVAC Unit"
+
+    def test_abbreviation_in_semantic_path(self):
+        assert CalendarEventMapper.clean_semantic_name("Equipment_HVACSystem") == "HVAC System"
+
 
 class TestFormatStateValue:
     """Test state value formatting."""

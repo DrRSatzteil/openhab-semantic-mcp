@@ -69,8 +69,11 @@ class CalendarEventMapper:
         # Rule 1: Use only the last part after the last underscore
         last_part = name.split("_")[-1]
 
-        # Rule 2: Replace CamelCasing with space before capital letters
-        cleaned = re.sub(r"(?<!^)(?=[A-Z])", " ", last_part)
+        # Rule 2: Replace CamelCasing with space before capital letters,
+        # keeping abbreviations (consecutive capitals) together.
+        # E.g. "HVACThermostat" -> "HVAC Thermostat", not "H V A C Thermostat"
+        cleaned = re.sub(r"(?<!^)(?<![A-Z])(?=[A-Z])", " ", last_part)
+        cleaned = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", cleaned)
         return cleaned.strip()
 
     @staticmethod

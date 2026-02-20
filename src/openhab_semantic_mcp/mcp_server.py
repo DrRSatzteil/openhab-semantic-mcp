@@ -47,6 +47,7 @@ mcp = FastMCP(
     host=config.mcp.host,
     port=config.mcp.port,
     log_level=config.log_level,
+    json_response=True,
 )
 openhab = OpenHAB(config.openhab.base_url, api_token=config.openhab.api_token)
 inventory = Inventory()

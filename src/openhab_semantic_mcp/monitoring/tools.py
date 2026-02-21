@@ -34,7 +34,27 @@ def register(
         monitoring_store, monitoring_config, inventory
     )
 
-    @mcp.tool()
+    @mcp.tool(
+        description=f"""Create a monitoring task with flexible modes and time-based scheduling.
+
+        Creates monitoring tasks that watch OpenHAB items for state changes and
+        trigger webhooks when conditions are met. Supports both one-shot and
+        time-window monitoring modes.
+
+        ⚠️ **IMPORTANT**: All times are interpreted in {monitoring_config.timezone} timezone unless
+        explicitly specified with timezone offset (e.g., '2026-02-10T14:48:00+01:00').
+
+        **Parameters:**
+        - **mode**: 'one_shot' (triggers once then completes) or 'time_window' (monitors for duration)
+        - **filters**: Semantic filters (location, equipment, point, property, state, etc.)
+        - **refinement**: Specific item names for precise targeting
+
+        **Examples:**
+        - One-shot immediate: mode='one_shot', end_time='2024-01-15T12:00:00', filters={{'point': 'Status_OpenState'}}
+        - One-shot delayed: mode='one_shot', start_time='2024-01-15T10:00:00', end_time='2024-01-15T12:00:00'
+        - Time window: mode='time_window', start_time='2024-01-15T09:00:00', end_time='2024-01-18T17:00:00'
+        """,
+    )
     def create_monitoring_task(
         mode: str = Field(
             "one_shot", description="Monitoring mode: 'one_shot' or 'time_window'"
@@ -54,25 +74,6 @@ def register(
             description=f"End time (ISO format). Default timezone: {monitoring_config.timezone}. Example: '2026-02-10T14:58:00' (interpreted as {monitoring_config.timezone} time)",
         ),
     ) -> Dict[str, Any]:
-        """Create a monitoring task with flexible modes and time-based scheduling.
-
-        Creates monitoring tasks that watch OpenHAB items for state changes and
-        trigger webhooks when conditions are met. Supports both one-shot and
-        time-window monitoring modes.
-
-        ⚠️ **IMPORTANT**: All times are interpreted in {monitoring_config.timezone} timezone unless
-        explicitly specified with timezone offset (e.g., '2026-02-10T14:48:00+01:00').
-
-        **Parameters:**
-        - **mode**: 'one_shot' (triggers once then completes) or 'time_window' (monitors for duration)
-        - **filters**: Semantic filters (location, equipment, point, property, state, etc.)
-        - **refinement**: Specific item names for precise targeting
-
-        **Examples:**
-        - One-shot immediate: mode='one_shot', end_time='2024-01-15T12:00:00', filters={'point': 'Status_OpenState'}
-        - One-shot delayed: mode='one_shot', start_time='2024-01-15T10:00:00', end_time='2024-01-15T12:00:00'
-        - Time window: mode='time_window', start_time='2024-01-15T09:00:00', end_time='2024-01-18T17:00:00'
-        """
         try:
             # Basic configuration check
             if not monitoring_config.webhook_url:

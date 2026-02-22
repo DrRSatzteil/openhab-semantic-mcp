@@ -41,11 +41,13 @@ def get_description():
         - **mode**: 'one_shot' (triggers once then completes) or 'time_window' (monitors for duration)
         - **filters**: Semantic filters (location, equipment, point, property, state, etc.)
         - **refinement**: Specific item names for precise targeting
+        - **intent**: Context for handling the trigger (who requested it, what action to take, priority)
 
         **Examples:**
         - One-shot immediate: mode='one_shot', end_time='2024-01-15T12:00:00', filters={{'point': 'Status_OpenState'}}
         - One-shot delayed: mode='one_shot', start_time='2024-01-15T10:00:00', end_time='2024-01-15T12:00:00'
         - Time window: mode='time_window', start_time='2024-01-15T09:00:00', end_time='2024-01-18T17:00:00'
+        - With intent: intent={{'requested_by': 'John', 'action': 'Notify user when door opens', 'priority': 'high'}}
         """
 
 def register(

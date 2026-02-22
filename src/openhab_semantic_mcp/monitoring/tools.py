@@ -2,9 +2,9 @@
 
 from datetime import datetime
 import logging
+import os
 from typing import Any, Dict, Optional
 
-from mcp.server.fastmcp import Context
 from pydantic import Field
 
 from ..helpers.models import ItemRefinement, SearchFilters
@@ -12,7 +12,7 @@ from ..helpers.descriptions import (
     FILTERS_DESCRIPTION_MONITORING,
     REFINEMENT_DESCRIPTION,
 )
-from .config import MonitoringConfig
+from ..config import MonitoringConfig
 from .factory import create_monitoring_storage
 from .service import MonitoringService
 from .models import (
@@ -24,24 +24,15 @@ from .models import (
 
 logger = logging.getLogger(__name__)
 
-
-def register(
-    mcp, *, monitoring_config: MonitoringConfig, inventory
-) -> MonitoringService:
-    """Register monitoring tools and return monitoring service instance."""
-    monitoring_store = create_monitoring_storage(monitoring_config)
-    monitoring_service = MonitoringService(
-        monitoring_store, monitoring_config, inventory
-    )
-
-    @mcp.tool(
-        description=f"""Create a monitoring task with flexible modes and time-based scheduling.
+def get_description():
+    timezone = os.environ.get("MONITORING_TIMEZONE", "UTC")
+    return f"""Create a monitoring task with flexible modes and time-based scheduling.
 
         Creates monitoring tasks that watch OpenHAB items for state changes and
         trigger webhooks when conditions are met. Supports both one-shot and
         time-window monitoring modes.
 
-        ⚠️ **IMPORTANT**: All times are interpreted in {monitoring_config.timezone} timezone unless
+        ⚠️ **IMPORTANT**: All times are interpreted in {timezone} timezone unless
         explicitly specified with timezone offset (e.g., '2026-02-10T14:48:00+01:00').
 
         **Parameters:**
@@ -53,8 +44,18 @@ def register(
         - One-shot immediate: mode='one_shot', end_time='2024-01-15T12:00:00', filters={{'point': 'Status_OpenState'}}
         - One-shot delayed: mode='one_shot', start_time='2024-01-15T10:00:00', end_time='2024-01-15T12:00:00'
         - Time window: mode='time_window', start_time='2024-01-15T09:00:00', end_time='2024-01-18T17:00:00'
-        """,
+        """
+
+def register(
+    mcp, *, monitoring_config: MonitoringConfig, inventory
+) -> MonitoringService:
+    """Register monitoring tools and return monitoring service instance."""
+    monitoring_store = create_monitoring_storage(monitoring_config)
+    monitoring_service = MonitoringService(
+        monitoring_store, monitoring_config, inventory
     )
+
+    @mcp.tool(description=get_description())
     def create_monitoring_task(
         mode: str = Field(
             "one_shot", description="Monitoring mode: 'one_shot' or 'time_window'"

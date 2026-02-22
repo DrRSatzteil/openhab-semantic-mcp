@@ -42,7 +42,7 @@ A lightweight MCP (Model Context Protocol) server for openHAB semantic operation
    # Monitoring Configuration (Required)
    MONITORING_WEBHOOK_URL=https://your-webhook-endpoint.org/webhook
    MONITORING_WEBHOOK_AUTH_HEADER=Authorization: Bearer your_webhook_token
-   MONITORING_TIMEZONE=Europe/Berlin
+   # MONITORING_TIMEZONE=Europe/Berlin  # Optional: defaults to UTC
    EOF
    ```
 
@@ -105,7 +105,7 @@ INVENTORY_REFRESH_MINUTES=60
 # Monitoring Configuration (Required)
 MONITORING_WEBHOOK_URL=https://your-webhook-endpoint.org/webhook
 MONITORING_WEBHOOK_AUTH_HEADER=Authorization: Bearer your_webhook_token
-MONITORING_TIMEZONE=Europe/Berlin
+# MONITORING_TIMEZONE=Europe/Berlin  # Optional: defaults to UTC
 
 # Optional Monitoring Settings
 MONITORING_STORAGE_TYPE=memory
@@ -120,7 +120,7 @@ MONITORING_ENABLE_AUTO_CLEANUP=true
 - `OPENHAB_BASE_URL`: URL of your openHAB instance
 - `OPENHAB_API_TOKEN`: API token for authentication
 - `MONITORING_WEBHOOK_URL`: Webhook endpoint for monitoring task notifications
-- `MONITORING_TIMEZONE`: Timezone for monitoring tasks (e.g., Europe/Berlin, America/New_York)
+- `MONITORING_TIMEZONE`: Timezone for monitoring tasks (e.g., Europe/Berlin, America/New_York). Optional: defaults to UTC if not set.
 
 **Optional:**
 - `MCP_HOST`: Host to bind the MCP server (default: 0.0.0.0)
@@ -252,7 +252,7 @@ create_monitoring_task(
 All times are automatically interpreted in the configured timezone:
 
 ```bash
-# Configure timezone (required)
+# Configure timezone (optional - defaults to UTC)
 MONITORING_TIMEZONE=Europe/Berlin    # European time
 MONITORING_TIMEZONE=America/New_York  # US Eastern time  
 MONITORING_TIMEZONE=Asia/Tokyo        # Japan time

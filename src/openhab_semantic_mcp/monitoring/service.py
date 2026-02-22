@@ -7,7 +7,7 @@ import logging
 import asyncio
 from .interface import MonitoringStorageInterface
 from .models import MonitoringTask, TriggerEvent, TaskUpdate, TaskStatus
-from .config import MonitoringConfig
+from ..config import MonitoringConfig
 from .trigger_evaluator import TriggerEvaluator
 from .task_status_manager import TaskStatusManager
 from .cleanup_manager import CleanupManager

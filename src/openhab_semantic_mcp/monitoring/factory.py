@@ -5,7 +5,7 @@ import pkgutil
 from typing import Dict, Type
 import logging
 
-from .config import MonitoringConfig
+from ..config import MonitoringConfig
 from .interface import MonitoringStorageInterface
 
 logger = logging.getLogger(__name__)

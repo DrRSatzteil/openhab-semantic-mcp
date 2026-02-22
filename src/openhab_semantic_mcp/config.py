@@ -71,7 +71,7 @@ class MonitoringConfig(BaseSettings):
         description="Authorization header for webhook requests",
     )
     timezone: str = Field(
-        ...,
+        default="UTC",
         description="Timezone for monitoring tasks (e.g., Europe/Berlin)",
     )
 
@@ -123,7 +123,7 @@ class MonitoringConfig(BaseSettings):
     def validate_timezone(cls, v: str) -> str:
         """Validate timezone string."""
         if not v:
-            raise ValueError("timezone is required")
+            return "UTC"
         try:
             ZoneInfo(v)
         except Exception as e:

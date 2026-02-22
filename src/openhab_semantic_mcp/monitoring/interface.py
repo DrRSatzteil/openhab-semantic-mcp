@@ -2,7 +2,7 @@ import abc
 from datetime import datetime
 from typing import Optional
 
-from .models import MonitoringTask, TaskUpdate
+from .models import MonitoringTask, TaskUpdate, MonitoringIntent
 
 
 class MonitoringStorageInterface(abc.ABC):
@@ -14,6 +14,7 @@ class MonitoringStorageInterface(abc.ABC):
         mode,
         filters=None,
         refinement=None,
+        intent: MonitoringIntent = None,
         start_time=None,
         end_time=None,
     ) -> MonitoringTask:

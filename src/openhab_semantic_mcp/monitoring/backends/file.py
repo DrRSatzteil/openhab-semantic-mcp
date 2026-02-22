@@ -14,7 +14,7 @@ from ..interface import MonitoringStorageInterface
 from ..models import (
     MonitoringTask,
     TaskUpdate,
-    get_timezone_aware_datetime,
+    MonitoringIntent,
     new_monitoring_task,
 )
 
@@ -62,6 +62,7 @@ class FileMonitoringStorage(MonitoringStorageInterface):
         mode,
         filters=None,
         refinement=None,
+        intent: MonitoringIntent = None,
         start_time=None,
         end_time=None,
     ) -> MonitoringTask:
@@ -70,15 +71,15 @@ class FileMonitoringStorage(MonitoringStorageInterface):
             mode=mode,
             filters=filters,
             refinement=refinement,
+            intent=intent,
             start_time=start_time,
             end_time=end_time,
         )
 
-        # Generate unique task ID
-        task_id = str(uuid.uuid4())
-        task = task.model_copy(update={"task_id": task_id})
+        # Generate unique task ID in single operation
+        task = task.model_copy(update={"task_id": str(uuid.uuid4())})
 
-        self.tasks[task_id] = task
+        self.tasks[task.task_id] = task
         self._save_tasks()
         return task
 

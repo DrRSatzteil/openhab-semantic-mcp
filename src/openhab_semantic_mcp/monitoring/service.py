@@ -6,7 +6,7 @@ This version uses separate components for better maintainability and testability
 import logging
 import asyncio
 from .interface import MonitoringStorageInterface
-from .models import MonitoringTask, TriggerEvent, TaskUpdate, TaskStatus
+from .models import MonitoringTask, TriggerEvent, TaskStatus, MonitoringIntent
 from ..config import MonitoringConfig
 from .trigger_evaluator import TriggerEvaluator
 from .task_status_manager import TaskStatusManager
@@ -52,6 +52,7 @@ class MonitoringService:
         mode,
         filters=None,
         refinement=None,
+        intent: MonitoringIntent = None,
         start_time=None,
         end_time=None,
     ) -> MonitoringTask:
@@ -60,6 +61,7 @@ class MonitoringService:
             mode=mode,
             filters=filters,
             refinement=refinement,
+            intent=intent,
             start_time=start_time,
             end_time=end_time,
         )

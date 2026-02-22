@@ -74,6 +74,15 @@ class MonitoringMode(str, Enum):
     TIME_WINDOW = "time_window"  # Monitor for time period, can trigger multiple times
 
 
+class PriorityLevel(str, Enum):
+    """Priority levels for monitoring tasks."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
 class TaskStatus(str, Enum):
     """Monitoring task status states."""
 
@@ -100,6 +109,37 @@ class TimeWindow(BaseModel):
         use_enum_values = True
 
 
+class MonitoringIntent(BaseModel):
+    """Intent context for monitoring tasks."""
+
+    requested_by: str = Field(
+        ..., 
+        description="Human-readable name of user who requested this monitoring task"
+    )
+    
+    action: str = Field(
+        ..., 
+        max_length=500,
+        description="Action to perform when this monitoring task triggers (free text)"
+    )
+    
+    context: Optional[str] = Field(
+        None, 
+        max_length=500,
+        description="Additional context or instructions for handling the trigger"
+    )
+    
+    priority: PriorityLevel = Field(
+        PriorityLevel.MEDIUM,
+        description="Priority level for filtering and processing"
+    )
+
+    class Config:
+        """Pydantic configuration."""
+
+        use_enum_values = True
+
+
 class TaskUpdate(BaseModel):
     """Model for monitoring task updates."""
 
@@ -107,6 +147,7 @@ class TaskUpdate(BaseModel):
     time_window: Optional["TimeWindowUpdate"] = None
     filters: Optional[Dict[str, Any]] = None
     refinement: Optional[Dict[str, Any]] = None
+    intent: Optional[MonitoringIntent] = None
     triggered_count: Optional[int] = None
     last_triggered_at: Optional[datetime] = None
     last_state_transition: Optional[datetime] = None
@@ -142,6 +183,9 @@ class MonitoringTask(BaseModel):
     # What to monitor
     filters: Optional[Dict[str, Any]] = None
     refinement: Optional[List[str]] = None
+
+    # Intent context
+    intent: Optional[MonitoringIntent] = None
 
     # Tracking
     triggered_count: int = 0
@@ -205,6 +249,7 @@ def new_monitoring_task(
     mode: MonitoringMode,
     filters: Optional[Dict[str, Any]] = None,
     refinement: Optional[List[str]] = None,
+    intent: Optional[MonitoringIntent] = None,
     start_time: Optional[str] = None,
     end_time: str = None,
 ) -> MonitoringTask:
@@ -238,4 +283,5 @@ def new_monitoring_task(
         created_at=now,
         filters=filters,
         refinement=refinement,
+        intent=intent,
     )

@@ -18,6 +18,8 @@ from .service import MonitoringService
 from .models import (
     MonitoringMode,
     MonitoringTask,
+    MonitoringIntent,
+    TaskUpdate,
     ensure_timezone_aware,
     get_timezone_aware_datetime,
 )
@@ -65,6 +67,9 @@ def register(
         ),
         refinement: Optional[ItemRefinement] = Field(
             None, description=REFINEMENT_DESCRIPTION
+        ),
+        intent: Optional[MonitoringIntent] = Field(
+            None, description="Intent context for handling the monitoring trigger"
         ),
         start_time: Optional[str] = Field(
             None,
@@ -126,6 +131,7 @@ def register(
                 mode=MonitoringMode(mode),
                 filters=filters.model_dump() if filters else None,
                 refinement=refinement.item_names if refinement else None,
+                intent=intent,
                 start_time=start_time,  # Pass as string - service handles parsing
                 end_time=end_time,  # Pass as string - service handles parsing
             )
@@ -191,8 +197,6 @@ def register(
 
             if not task:
                 return {"success": False, "error": "Task not found", "task_id": task_id}
-
-            from .models import TaskUpdate
 
             task_update = TaskUpdate(status="cancelled", update_state_transition=True)
             monitoring_store.update_task(task_id, task_update)

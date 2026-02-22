@@ -14,6 +14,7 @@ from ...models import (
     TaskUpdate,
     new_monitoring_task,
     MonitoringMode,
+    MonitoringIntent,
 )
 from .caldav_config import CalDAVConfig
 from .caldav_connection import CalDAVConnection
@@ -79,20 +80,21 @@ class CalDAVMonitoringStorage(MonitoringStorageInterface):
         mode: MonitoringMode,
         filters: Optional[Dict[str, Any]] = None,
         refinement: Optional[Dict[str, Any]] = None,
+        intent: MonitoringIntent = None,
         start_time: Optional[str] = None,
         end_time: str = None,
     ) -> MonitoringTask:
         """Create a new monitoring task with CalDAV UID as task ID."""
-        # Create temporary task without ID first
         new_task = new_monitoring_task(
             mode=mode,
             filters=filters,
             refinement=refinement,
+            intent=intent,
             start_time=start_time,
             end_time=end_time,
         )
 
-        # Create calendar event - this will generate the real UID
+        # Create calendar event - this will generate real UID
         task_with_id = self.synchronizer.create_event(new_task)
         self._task_cache[task_with_id.task_id] = task_with_id
 

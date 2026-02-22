@@ -37,6 +37,15 @@ class WebhookManager:
             },
         }
 
+        # Add intent information if available
+        if task.intent:
+            payload["intent"] = {
+                "requested_by": task.intent.requested_by,
+                "action": task.intent.action,
+                "context": task.intent.context,
+                "priority": task.intent.priority,
+            }
+
         # Add time window info if applicable
         if task.time_window:
             payload["time_window"] = {

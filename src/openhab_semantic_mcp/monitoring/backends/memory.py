@@ -8,7 +8,7 @@ from ..interface import MonitoringStorageInterface
 from ..models import (
     MonitoringTask,
     TaskUpdate,
-    get_timezone_aware_datetime,
+    MonitoringIntent,
     new_monitoring_task,
 )
 
@@ -31,24 +31,26 @@ class MemoryMonitoringStorage(MonitoringStorageInterface):
         mode,
         filters=None,
         refinement=None,
+        intent: MonitoringIntent = None,
         start_time=None,
         end_time=None,
     ) -> MonitoringTask:
         """Create a new monitoring task with generated ID."""
+        # Create task with intent included directly
         task = new_monitoring_task(
             mode=mode,
             filters=filters,
             refinement=refinement,
+            intent=intent,
             start_time=start_time,
             end_time=end_time,
         )
 
-        # Generate unique task ID
-        task_id = str(uuid.uuid4())
-        task = task.model_copy(update={"task_id": task_id})
+        # Generate unique task ID in single operation
+        task = task.model_copy(update={"task_id": str(uuid.uuid4())})
 
         # Add to storage
-        self.tasks[task_id] = task
+        self.tasks[task.task_id] = task
         return task
 
     def delete_task(self, task_id: str) -> None:

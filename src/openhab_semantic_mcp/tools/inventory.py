@@ -7,10 +7,10 @@ import logging
 
 from pydantic import Field
 
-from ..helpers.error_handler import create_error_response
-from ..helpers.items import format_item_response, validate_filter_values
-from ..helpers.models import ItemRefinement, SearchFilters
-from ..helpers.descriptions import FILTERS_DESCRIPTION, REFINEMENT_DESCRIPTION
+from ..search.error_handler import create_error_response
+from ..search.items import format_item_response, validate_filter_values
+from ..search.models import ItemRefinement, SearchFilters
+from ..search.descriptions import FILTERS_DESCRIPTION, REFINEMENT_DESCRIPTION
 from ..exceptions import InvalidFilterError
 
 logger = logging.getLogger(__name__)

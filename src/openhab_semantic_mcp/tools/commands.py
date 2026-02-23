@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 
 from pydantic import Field
 
-from ..helpers.models import ItemRefinement, SearchFilters
-from ..helpers.descriptions import FILTERS_DESCRIPTION, REFINEMENT_DESCRIPTION
-from ..helpers.operations import execute_item_operation
+from ..search.models import ItemRefinement, SearchFilters
+from ..search.descriptions import FILTERS_DESCRIPTION, REFINEMENT_DESCRIPTION
+from ..search.operations import execute_item_operation
 
 logger = logging.getLogger(__name__)
 

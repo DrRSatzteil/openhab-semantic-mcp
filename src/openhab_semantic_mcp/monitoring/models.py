@@ -131,13 +131,28 @@ class MonitoringIntent(BaseModel):
     
     priority: PriorityLevel = Field(
         PriorityLevel.MEDIUM,
-        description="Priority level for filtering and processing"
+        description="Priority of the task. MUST be exactly one of: 'low', 'medium', 'high', 'critical' (or 'normal' for 'medium')"
     )
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def coerce_priority_from_string(cls, v):
+        """Auto-coerce string priority to enum, handling synonyms."""
+        if isinstance(v, str):
+            # Handle synonyms
+            if v.lower() == "normal":
+                v = "medium"
+            
+            # Convert string to enum, case-insensitive
+            try:
+                return PriorityLevel(v.lower())
+            except ValueError:
+                raise ValueError(f"Priority must be one of: {', '.join([p.value for p in PriorityLevel])} (or 'normal' for 'medium')")
+        return v
 
     class Config:
         """Pydantic configuration."""
-
-        use_enum_values = True
+        pass
 
 
 class TaskUpdate(BaseModel):

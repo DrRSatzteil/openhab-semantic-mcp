@@ -7,8 +7,8 @@ from typing import Any, Dict, Optional
 
 from pydantic import Field
 
-from ..helpers.models import ItemRefinement, SearchFilters
-from ..helpers.descriptions import (
+from ..search.models import ItemRefinement, SearchFilters
+from ..search.descriptions import (
     FILTERS_DESCRIPTION_MONITORING,
     REFINEMENT_DESCRIPTION,
 )

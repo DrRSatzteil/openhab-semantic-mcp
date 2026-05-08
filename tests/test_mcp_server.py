@@ -37,7 +37,7 @@ def test_importing_mcp_server_has_no_startup_side_effects(monkeypatch):
 def test_bootstrap_application_wires_dependencies(monkeypatch):
     """Bootstrap should create and connect all core services explicitly."""
     module = importlib.import_module("openhab_semantic_mcp.mcp_server")
-    env_file = Path("/tmp/test.env")
+    env_file_path = Path("/tmp/test.env")
     calls = {
         "load_config": None,
         "timezone": None,
@@ -133,9 +133,9 @@ def test_bootstrap_application_wires_dependencies(monkeypatch):
         module, "register_monitoring_tools", fake_register_monitoring_tools
     )
 
-    app = module.bootstrap_application(env_file=env_file)
+    app = module.bootstrap_application(env_file=env_file_path)
 
-    assert calls["load_config"] == env_file
+    assert calls["load_config"] == env_file_path
     assert calls["timezone"] == "UTC"
     assert isinstance(app.mcp, FakeFastMCP)
     assert isinstance(app.openhab, FakeOpenHAB)

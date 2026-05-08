@@ -185,12 +185,11 @@ class RuntimeManager:
     def shutdown(self) -> None:
         """Shut down runtime-managed background resources."""
         with self._lock:
-            refresh_thread = self._refresh_thread
-            dispatcher = self.dispatcher
-
-            if not self._initialized and refresh_thread is None and dispatcher is None:
+            if not self._initialized:
                 return
 
+            refresh_thread = self._refresh_thread
+            dispatcher = self.dispatcher
             self._initialized = False
             self._refresh_stop_event.set()
             self._refresh_thread = None

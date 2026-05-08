@@ -236,16 +236,21 @@ def load_config(env_file: Optional[Path] = None) -> ServerConfig:
         logger.info("Loading configuration from %s", env_file)
 
     try:
-        config_kwargs: Dict[str, Any] = {}
+        nested_config_kwargs: Dict[str, Any] = {}
+        server_config_kwargs: Dict[str, Any] = {}
         if env_file is not None:
-            config_kwargs["_env_file"] = env_file
+            # ServerConfig and its nested BaseSettings models must all receive the
+            # explicit env file so top-level and nested settings resolve from the
+            # same source instead of falling back to the default .env location.
+            nested_config_kwargs["_env_file"] = env_file
+            server_config_kwargs["_env_file"] = env_file
 
         config = ServerConfig(
-            openhab=OpenHABConfig(**config_kwargs),
-            mcp=MCPConfig(**config_kwargs),
-            monitoring=MonitoringConfig(**config_kwargs),
-            inventory=InventoryConfig(**config_kwargs),
-            **config_kwargs,
+            openhab=OpenHABConfig(**nested_config_kwargs),
+            mcp=MCPConfig(**nested_config_kwargs),
+            monitoring=MonitoringConfig(**nested_config_kwargs),
+            inventory=InventoryConfig(**nested_config_kwargs),
+            **server_config_kwargs,
         )
         logger.info("Configuration loaded and validated successfully")
         return config

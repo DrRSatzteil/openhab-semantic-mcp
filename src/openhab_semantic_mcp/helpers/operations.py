@@ -87,6 +87,7 @@ async def execute_item_operation(
 
         results = []
         successful_operations = 0
+        overall_success = False
 
         for item_name in items:
             item = inventory.get_item(item_name)
@@ -191,7 +192,7 @@ async def execute_item_operation(
                     }
                 )
                 continue
-            overall_success = successful_operations > 0
+        overall_success = successful_operations > 0
 
         return {
             "success": overall_success,

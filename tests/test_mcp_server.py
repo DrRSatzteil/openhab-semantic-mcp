@@ -213,6 +213,12 @@ def test_server_application_shutdown_is_idempotent():
     """Shutdown should only stop managed services once."""
     module = importlib.import_module("openhab_semantic_mcp.mcp_server")
 
+    class FakeInventoryConfig:
+        refresh_minutes = 1
+
+    class FakeConfig:
+        inventory = FakeInventoryConfig()
+
     class FakeOpenHAB:
         def __init__(self):
             self.stop_count = 0
@@ -238,10 +244,10 @@ def test_server_application_shutdown_is_idempotent():
     runtime_manager = FakeRuntimeManager()
     monitoring_service = FakeMonitoringService()
     app = module.ServerApplication(
-        config=SimpleNamespace(inventory=SimpleNamespace(refresh_minutes=1)),
+        config=FakeConfig(),
         mcp=SimpleNamespace(),
         openhab=openhab,
-        inventory=SimpleNamespace(),
+        inventory=object(),
         runtime_manager=runtime_manager,
         monitoring_service=monitoring_service,
     )

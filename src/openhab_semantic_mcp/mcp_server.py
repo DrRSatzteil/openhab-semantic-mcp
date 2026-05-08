@@ -23,6 +23,24 @@ from .tools.discovery import register as register_discovery_tools
 from .tools.inventory import register as register_inventory_tools
 
 logger = logging.getLogger(__name__)
+MCPLogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+MCPTransport = Literal["stdio", "sse", "streamable-http"]
+
+
+def _validate_log_level(log_level: str) -> MCPLogLevel:
+    """Validate and narrow the configured FastMCP log level."""
+    valid_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+    if log_level not in valid_log_levels:
+        raise ValueError(f"Invalid MCP log level: {log_level}")
+    return cast(MCPLogLevel, log_level)
+
+
+def _validate_transport(transport: str) -> MCPTransport:
+    """Validate and narrow the configured FastMCP transport."""
+    valid_transports = {"stdio", "sse", "streamable-http"}
+    if transport not in valid_transports:
+        raise ValueError(f"Invalid MCP transport: {transport}")
+    return cast(MCPTransport, transport)
 
 
 class AsyncEventDispatcher:
@@ -272,10 +290,7 @@ def bootstrap_application(env_file: Optional[Path] = None) -> ServerApplication:
     logger.info("Monitoring Storage: %s", config.monitoring.storage_type)
     logger.info("Monitoring Timezone: %s", config.monitoring.timezone)
 
-    log_level = cast(
-        Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        config.log_level,
-    )
+    log_level = _validate_log_level(config.log_level)
     mcp = FastMCP(
         "OpenHAB Semantic MCP Server",
         host=config.mcp.host,
@@ -313,10 +328,7 @@ def run_server(app: Optional[ServerApplication] = None) -> ServerApplication:
 
     try:
         server_app.initialize()
-        transport = cast(
-            Literal["stdio", "sse", "streamable-http"],
-            server_app.config.mcp.transport,
-        )
+        transport = _validate_transport(server_app.config.mcp.transport)
         logger.info(
             "Starting openHAB Semantic MCP Server on %s:%s",
             server_app.config.mcp.host,

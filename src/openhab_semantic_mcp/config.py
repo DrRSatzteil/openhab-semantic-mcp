@@ -4,10 +4,10 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -236,7 +236,17 @@ def load_config(env_file: Optional[Path] = None) -> ServerConfig:
         logger.info("Loading configuration from %s", env_file)
 
     try:
-        config = ServerConfig()
+        config_kwargs: Dict[str, Any] = {}
+        if env_file is not None:
+            config_kwargs["_env_file"] = env_file
+
+        config = ServerConfig(
+            openhab=OpenHABConfig(**config_kwargs),
+            mcp=MCPConfig(**config_kwargs),
+            monitoring=MonitoringConfig(**config_kwargs),
+            inventory=InventoryConfig(**config_kwargs),
+            **config_kwargs,
+        )
         logger.info("Configuration loaded and validated successfully")
         return config
     except Exception as e:

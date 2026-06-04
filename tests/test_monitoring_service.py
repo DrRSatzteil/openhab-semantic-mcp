@@ -10,7 +10,7 @@ import pytest
 from openhab_semantic_mcp.dto import Item, State, Location
 from openhab_semantic_mcp.inventory import Inventory
 from openhab_semantic_mcp.monitoring.backends.memory import MemoryMonitoringStorage
-from openhab_semantic_mcp.monitoring.config import MonitoringConfig
+from openhab_semantic_mcp.config import MonitoringConfig
 from openhab_semantic_mcp.monitoring.models import (
     MonitoringMode,
     TaskStatus,

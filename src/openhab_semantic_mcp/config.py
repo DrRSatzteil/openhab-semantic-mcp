@@ -62,8 +62,8 @@ class MonitoringConfig(BaseSettings):
     """Monitoring system configuration."""
 
     # Required fields
-    webhook_url: str = Field(
-        ...,
+    webhook_url: Optional[str] = Field(
+        default=None,
         description="Webhook endpoint for monitoring notifications",
     )
     webhook_auth_header: Optional[str] = Field(

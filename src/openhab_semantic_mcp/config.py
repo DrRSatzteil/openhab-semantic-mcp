@@ -4,10 +4,10 @@ import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
+from zoneinfo import ZoneInfo
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +62,8 @@ class MonitoringConfig(BaseSettings):
     """Monitoring system configuration."""
 
     # Required fields
-    webhook_url: str = Field(
-        ...,
+    webhook_url: Optional[str] = Field(
+        default=None,
         description="Webhook endpoint for monitoring notifications",
     )
     webhook_auth_header: Optional[str] = Field(
@@ -236,7 +236,20 @@ def load_config(env_file: Optional[Path] = None) -> ServerConfig:
         logger.info("Loading configuration from %s", env_file)
 
     try:
-        config = ServerConfig()
+        # ServerConfig and its nested BaseSettings models must all receive the
+        # explicit env file so top-level and nested settings resolve from the
+        # same source instead of falling back to the default .env location.
+        env_kwargs: Dict[str, Any] = (
+            {"_env_file": env_file} if env_file is not None else {}
+        )
+
+        config = ServerConfig(
+            openhab=OpenHABConfig(**env_kwargs),
+            mcp=MCPConfig(**env_kwargs),
+            monitoring=MonitoringConfig(**env_kwargs),
+            inventory=InventoryConfig(**env_kwargs),
+            **env_kwargs,
+        )
         logger.info("Configuration loaded and validated successfully")
         return config
     except Exception as e:

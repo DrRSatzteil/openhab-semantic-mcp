@@ -8,37 +8,43 @@ This module provides the command-line interface for running the MCP server.
 import logging
 import signal
 import sys
-from openhab_semantic_mcp.mcp_server import run_server, openhab
+from types import FrameType
+from typing import Optional
+
+from openhab_semantic_mcp.mcp_server import (
+    ServerApplication,
+    bootstrap_application,
+    run_server,
+)
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
+application: Optional[ServerApplication] = None
 
 
-def signal_handler(signum, _frame):
+def signal_handler(signum: int, _frame: Optional[FrameType]) -> None:
     """Handle shutdown signals gracefully."""
     logger.info("Received signal %s, shutting down gracefully...", signum)
 
-    # Stop the SSE listener
-    try:
-        openhab.stop_sse_listener()
-        logger.info("SSE listener stopped")
-    except Exception as e:
-        logger.error("Error stopping SSE listener: %s", e)
+    if application is not None:
+        application.shutdown()
 
-    # Exit gracefully
     sys.exit(0)
 
 
-def main():
+def main() -> None:
     """Main entry point for the CLI."""
-    # Set up signal handlers for graceful shutdown
+    global application
+
+    application = bootstrap_application()
+
     signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
 
     try:
-        run_server()
-    except Exception as e:
-        logger.error("Fatal error: %s", e)
+        run_server(application)
+    except Exception as exc:
+        logger.error("Fatal error: %s", exc)
         sys.exit(1)
 
 

@@ -68,6 +68,8 @@ class Item(BaseModel):
     read_only: Optional[bool] = None
     allowed_commands: Optional[list[str]] = None
     allowed_states: Optional[list[str]] = None
+    command_labels: Optional[dict[str, str]] = None
+    state_labels: Optional[dict[str, str]] = None
 
     class Config:
         """Pydantic configuration for Item model."""

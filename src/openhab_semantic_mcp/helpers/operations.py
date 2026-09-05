@@ -20,6 +20,15 @@ from .models import ItemRefinement, SearchFilters
 logger = logging.getLogger(__name__)
 
 
+def _format_options_with_labels(
+    values: list[str], labels: Optional[Dict[str, str]]
+) -> list[str]:
+    """Format allowed values as "value (label)" where a human-readable label is known."""
+    if not labels:
+        return values
+    return [f"{v} ({labels[v]})" if v in labels else v for v in values]
+
+
 async def execute_item_operation(
     *,
     openhab: OpenHAB,
@@ -108,11 +117,14 @@ async def execute_item_operation(
 
             if operation_type == "command" and item.allowed_commands:
                 if value not in item.allowed_commands:
+                    allowed_display = _format_options_with_labels(
+                        item.allowed_commands, item.command_labels
+                    )
                     error_result = create_error_response(
                         ItemCommandError(
                             item_name,
                             value,
-                            f"Command '{value}' not allowed. Allowed commands: {item.allowed_commands}",
+                            f"Command '{value}' not allowed. Allowed commands: {allowed_display}",
                         ),
                         "command_validation",
                     )
@@ -121,11 +133,14 @@ async def execute_item_operation(
 
             if operation_type == "update" and item.allowed_states:
                 if value not in item.allowed_states:
+                    allowed_display = _format_options_with_labels(
+                        item.allowed_states, item.state_labels
+                    )
                     error_result = create_error_response(
                         ItemStateError(
                             item_name,
                             value,
-                            f"State '{value}' not allowed. Allowed states: {item.allowed_states}",
+                            f"State '{value}' not allowed. Allowed states: {allowed_display}",
                         ),
                         "state_validation",
                     )

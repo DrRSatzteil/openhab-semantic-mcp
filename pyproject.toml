@@ -32,7 +32,7 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "python-dotenv",
-    "mcp",
+    "mcp<2",
     "aiohttp",
     "caldav",
     "vobject",

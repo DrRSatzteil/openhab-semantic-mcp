@@ -10,7 +10,15 @@ from openhab_semantic_mcp.helpers.models import ItemRefinement, SearchFilters
 from openhab_semantic_mcp.helpers.operations import execute_item_operation
 
 
-def _make_item(name: str, *, read_only: bool = False, allowed_commands=None, allowed_states=None):
+def _make_item(
+    name: str,
+    *,
+    read_only: bool = False,
+    allowed_commands=None,
+    allowed_states=None,
+    command_labels=None,
+    state_labels=None,
+):
     return Item(
         name=name,
         type="Switch",
@@ -18,6 +26,8 @@ def _make_item(name: str, *, read_only: bool = False, allowed_commands=None, all
         read_only=read_only,
         allowed_commands=allowed_commands,
         allowed_states=allowed_states,
+        command_labels=command_labels,
+        state_labels=state_labels,
     )
 
 
@@ -194,3 +204,35 @@ async def test_execute_item_operation_handles_validation_errors_from_inventory_l
     assert result["success"] is False
     assert result["error_type"] == "ValidationError"
     assert result["operation"] == "command_entities"
+
+
+@pytest.mark.asyncio
+async def test_execute_item_operation_command_validation_error_includes_labels(monkeypatch):
+    openhab = Mock()
+    inventory = Mock()
+    inventory.get.return_value = ["vacuum_livingroom_segment"]
+    inventory.get_item.return_value = _make_item(
+        "vacuum_livingroom_segment",
+        allowed_commands=["16", "17", "18"],
+        command_labels={"16": "Esszimmer", "17": "Wohnzimmer", "18": "WC"},
+    )
+
+    monkeypatch.setattr(
+        "openhab_semantic_mcp.helpers.operations.validate_filter_values",
+        lambda inv, f: None,
+    )
+
+    result = await execute_item_operation(
+        openhab=openhab,
+        inventory=inventory,
+        filters=SearchFilters(location="Indoor_Room_LivingRoom"),
+        refinement=None,
+        operation_type="command",
+        value="99",
+    )
+
+    error_entry = result["results"][0]
+    assert error_entry["error_type"] == "ItemCommandError"
+    assert "16 (Esszimmer)" in error_entry["message"]
+    assert "17 (Wohnzimmer)" in error_entry["message"]
+    assert "18 (WC)" in error_entry["message"]

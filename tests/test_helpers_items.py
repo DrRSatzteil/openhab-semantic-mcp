@@ -150,3 +150,28 @@ def test_format_item_response_builds_location_and_equipment_hierarchy():
     assert response["location"]["hierarchy"] == ["Indoor", "Indoor_Room_LivingRoom"]
     assert response["equipment"]["type"] == "Lighting_Ceiling"
     assert response["equipment"]["parent"]["type"] == "Lighting"
+
+
+def test_format_item_response_includes_command_and_state_labels():
+    item = Item(
+        name="vacuum_livingroom_segment",
+        type="String",
+        allowed_commands=["16", "17", "18"],
+        allowed_states=["16", "17", "18"],
+        command_labels={"16": "Esszimmer", "17": "Wohnzimmer", "18": "WC"},
+        state_labels={"16": "Esszimmer", "17": "Wohnzimmer", "18": "WC"},
+    )
+
+    response = format_item_response(item)
+
+    assert response["command_labels"] == {"16": "Esszimmer", "17": "Wohnzimmer", "18": "WC"}
+    assert response["state_labels"] == {"16": "Esszimmer", "17": "Wohnzimmer", "18": "WC"}
+
+
+def test_format_item_response_labels_default_to_none():
+    item = Item(name="switch1", type="Switch", allowed_commands=["ON", "OFF"])
+
+    response = format_item_response(item)
+
+    assert response["command_labels"] is None
+    assert response["state_labels"] is None
